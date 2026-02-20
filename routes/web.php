@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataFileController;
 use App\Http\Controllers\PostController;
@@ -37,10 +38,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/subscribe/{plan}', [SubscriptionController::class, 'subscribe'])->name('subscription.subscribe');
     Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel'])->name('subscription.cancel');
 
+    // OAuth routes (outside subscription middleware — connecting is always allowed)
+    Route::get('/auth/{platform}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
+    Route::get('/auth/{platform}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
+
     // Routes requiring active subscription
     Route::middleware('subscription')->group(function () {
         // Social accounts
-        Route::resource('social-accounts', SocialAccountController::class)->except(['show']);
+        Route::resource('social-accounts', SocialAccountController::class)->except(['show', 'store']);
 
         // Posts
         Route::resource('posts', PostController::class);

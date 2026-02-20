@@ -35,4 +35,33 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Social Media OAuth (App-Level Credentials)
+    |--------------------------------------------------------------------------
+    |
+    | These are YOUR APPLICATION's credentials registered with each platform.
+    | They identify your app during OAuth flows. Each user's personal
+    | access/refresh tokens are stored in the social_accounts table, not here.
+    |
+    */
+
+    'twitter' => [
+        'client_id' => env('TWITTER_CLIENT_ID'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET'),
+        'redirect' => env('APP_URL') . '/auth/twitter/callback',
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_APP_ID'),
+        'client_secret' => env('FACEBOOK_APP_SECRET'),
+        'redirect' => env('APP_URL') . '/auth/facebook/callback',
+    ],
+
+    'linkedin-openid' => [
+        'client_id' => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect' => env('APP_URL') . '/auth/linkedin/callback',
+    ],
+
 ];

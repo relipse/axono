@@ -5,61 +5,75 @@
 <div class="max-w-2xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">Connect Social Account</h1>
 
-    <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md mb-6 text-sm">
-        To connect a social account, you'll need API credentials from the respective platform.
-        Enter your access tokens below. In a production environment, this would use OAuth.
+    <p class="text-gray-600 mb-6">Click a platform below to authorize via OAuth. You'll be redirected to the platform to grant access, then returned here automatically.</p>
+
+    <div class="space-y-4">
+        {{-- Twitter / X --}}
+        <div class="bg-white rounded-lg shadow-sm p-5 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-black rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">X</span>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Twitter / X</h3>
+                    <p class="text-sm text-gray-500">Post tweets on your behalf</p>
+                </div>
+            </div>
+            @if(in_array('twitter', $connectedPlatforms))
+                <span class="text-sm text-green-600 font-medium">Connected</span>
+            @else
+                <a href="{{ route('social.redirect', 'twitter') }}"
+                   class="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800">
+                    Connect
+                </a>
+            @endif
+        </div>
+
+        {{-- Facebook --}}
+        <div class="bg-white rounded-lg shadow-sm p-5 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">f</span>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">Facebook</h3>
+                    <p class="text-sm text-gray-500">Post to your pages and profile</p>
+                </div>
+            </div>
+            @if(in_array('facebook', $connectedPlatforms))
+                <span class="text-sm text-green-600 font-medium">Connected</span>
+            @else
+                <a href="{{ route('social.redirect', 'facebook') }}"
+                   class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700">
+                    Connect
+                </a>
+            @endif
+        </div>
+
+        {{-- LinkedIn --}}
+        <div class="bg-white rounded-lg shadow-sm p-5 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-blue-700 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">in</span>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-gray-900">LinkedIn</h3>
+                    <p class="text-sm text-gray-500">Share professional updates</p>
+                </div>
+            </div>
+            @if(in_array('linkedin', $connectedPlatforms))
+                <span class="text-sm text-green-600 font-medium">Connected</span>
+            @else
+                <a href="{{ route('social.redirect', 'linkedin') }}"
+                   class="bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800">
+                    Connect
+                </a>
+            @endif
+        </div>
     </div>
 
-    <form method="POST" action="{{ route('social-accounts.store') }}" class="bg-white rounded-lg shadow-sm p-6 space-y-6">
-        @csrf
-
-        <div>
-            <label for="platform" class="block text-sm font-medium text-gray-700">Platform</label>
-            <select id="platform" name="platform" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
-                <option value="">Select a platform...</option>
-                <option value="twitter" {{ old('platform') === 'twitter' ? 'selected' : '' }}>Twitter / X</option>
-                <option value="facebook" {{ old('platform') === 'facebook' ? 'selected' : '' }}>Facebook</option>
-                <option value="linkedin" {{ old('platform') === 'linkedin' ? 'selected' : '' }}>LinkedIn</option>
-                <option value="instagram" {{ old('platform') === 'instagram' ? 'selected' : '' }}>Instagram</option>
-            </select>
-        </div>
-
-        <div>
-            <label for="username" class="block text-sm font-medium text-gray-700">Username / Handle</label>
-            <input id="username" type="text" name="username" value="{{ old('username') }}" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border"
-                placeholder="@yourhandle">
-        </div>
-
-        <div>
-            <label for="display_name" class="block text-sm font-medium text-gray-700">Display Name (optional)</label>
-            <input id="display_name" type="text" name="display_name" value="{{ old('display_name') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
-        </div>
-
-        <div>
-            <label for="platform_user_id" class="block text-sm font-medium text-gray-700">Platform User ID (optional)</label>
-            <input id="platform_user_id" type="text" name="platform_user_id" value="{{ old('platform_user_id') }}"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border"
-                placeholder="Used for Facebook pages and LinkedIn">
-        </div>
-
-        <div>
-            <label for="access_token" class="block text-sm font-medium text-gray-700">Access Token</label>
-            <input id="access_token" type="password" name="access_token" required
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
-        </div>
-
-        <div>
-            <label for="refresh_token" class="block text-sm font-medium text-gray-700">Refresh Token (optional)</label>
-            <input id="refresh_token" type="password" name="refresh_token"
-                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
-        </div>
-
-        <div class="flex justify-end space-x-3">
-            <a href="{{ route('social-accounts.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">Cancel</a>
-            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">Connect Account</button>
-        </div>
-    </form>
+    <div class="mt-6">
+        <a href="{{ route('social-accounts.index') }}" class="text-gray-500 hover:text-gray-700 text-sm">&larr; Back to Accounts</a>
+    </div>
 </div>
 @endsection
