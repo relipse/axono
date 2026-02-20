@@ -2,51 +2,51 @@
 @section('title', 'Data File Preview')
 
 @section('content')
-<div class="max-w-3xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">{{ $dataFile->name }}</h1>
-        <a href="{{ route('data-files.index') }}" class="text-gray-500 hover:text-gray-700 text-sm">&larr; Back</a>
+<div class="pf-max-w-3xl">
+    <div class="pf-page-header">
+        <h1>{{ $dataFile->name }}</h1>
+        <a href="{{ route('data-files.index') }}" class="pf-btn pf-btn-ghost pf-btn-sm">&larr; Back</a>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-                <p class="text-gray-500">Original File</p>
-                <p class="font-medium">{{ $dataFile->original_filename }}</p>
-            </div>
-            <div>
-                <p class="text-gray-500">Total Lines</p>
-                <p class="font-medium">{{ $dataFile->total_lines }}</p>
-            </div>
-            <div>
-                <p class="text-gray-500">Lines Used</p>
-                <p class="font-medium">{{ $dataFile->used_lines }}</p>
-            </div>
-            <div>
-                <p class="text-gray-500">File Size</p>
-                <p class="font-medium">{{ number_format($dataFile->file_size / 1024, 1) }} KB</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Preview (first 20 lines)</h2>
-        </div>
-        <div class="divide-y divide-gray-100">
-            @forelse($preview as $index => $line)
-                <div class="px-6 py-3 flex items-start">
-                    <span class="text-gray-400 text-xs font-mono w-8 flex-shrink-0 pt-0.5">{{ $index + 1 }}</span>
-                    <p class="text-sm text-gray-700 {{ $index < $dataFile->used_lines ? 'line-through text-gray-400' : '' }}">
-                        {{ $line }}
-                    </p>
+    <div class="pf-card pf-mb-6">
+        <div class="pf-card-body">
+            <div class="pf-grid pf-grid-4 pf-text-sm">
+                <div>
+                    <p class="pf-text-muted">Original File</p>
+                    <p class="pf-font-semibold">{{ $dataFile->original_filename }}</p>
                 </div>
-            @empty
-                <div class="px-6 py-8 text-center text-gray-500">File is empty.</div>
-            @endforelse
+                <div>
+                    <p class="pf-text-muted">Total Lines</p>
+                    <p class="pf-font-semibold">{{ $dataFile->total_lines }}</p>
+                </div>
+                <div>
+                    <p class="pf-text-muted">Lines Used</p>
+                    <p class="pf-font-semibold">{{ $dataFile->used_lines }}</p>
+                </div>
+                <div>
+                    <p class="pf-text-muted">File Size</p>
+                    <p class="pf-font-semibold">{{ number_format($dataFile->file_size / 1024, 1) }} KB</p>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <div class="pf-card">
+        <div class="pf-card-header">
+            <h2>Preview (first 20 lines)</h2>
+        </div>
+        @forelse($preview as $index => $line)
+            <div class="pf-list-item" style="align-items: flex-start;">
+                <span class="pf-text-xs pf-text-muted pf-font-mono" style="width: 2rem; flex-shrink: 0;">{{ $index + 1 }}</span>
+                <p class="pf-text-sm {{ $index < $dataFile->used_lines ? 'pf-text-muted' : '' }}" style="{{ $index < $dataFile->used_lines ? 'text-decoration: line-through;' : '' }}">
+                    {{ $line }}
+                </p>
+            </div>
+        @empty
+            <div class="pf-card-body pf-text-center pf-text-muted">File is empty.</div>
+        @endforelse
         @if($dataFile->total_lines > 20)
-            <div class="px-6 py-3 bg-gray-50 text-sm text-gray-500 text-center">
+            <div class="pf-card-footer pf-text-center pf-text-sm pf-text-muted" style="background: var(--pf-gray-50);">
                 ...and {{ $dataFile->total_lines - 20 }} more lines
             </div>
         @endif

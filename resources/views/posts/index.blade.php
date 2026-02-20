@@ -2,84 +2,86 @@
 @section('title', 'Posts')
 
 @section('content')
-<div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Posts</h1>
-    <a href="{{ route('posts.create') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">New Post</a>
+<div class="pf-page-header">
+    <h1>Posts</h1>
+    <a href="{{ route('posts.create') }}" class="pf-btn pf-btn-primary">New Post</a>
 </div>
 
 {{-- Filters --}}
-<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-    <form method="GET" action="{{ route('posts.index') }}" class="flex flex-wrap gap-4">
-        <select name="status" class="rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border">
-            <option value="">All Statuses</option>
-            @foreach(['draft', 'scheduled', 'publishing', 'published', 'failed'] as $status)
-                <option value="{{ $status }}" {{ request('status') === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
-            @endforeach
-        </select>
-        <select name="platform" class="rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border">
-            <option value="">All Platforms</option>
-            @foreach(['twitter', 'facebook', 'linkedin', 'instagram'] as $platform)
-                <option value="{{ $platform }}" {{ request('platform') === $platform ? 'selected' : '' }}>{{ ucfirst($platform) }}</option>
-            @endforeach
-        </select>
-        <button type="submit" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm hover:bg-gray-200">Filter</button>
-        @if(request()->hasAny(['status', 'platform']))
-            <a href="{{ route('posts.index') }}" class="text-gray-500 px-4 py-2 text-sm hover:text-gray-700">Clear</a>
-        @endif
-    </form>
+<div class="pf-card pf-mb-6">
+    <div class="pf-card-body">
+        <form method="GET" action="{{ route('posts.index') }}" class="pf-flex pf-gap-4" style="flex-wrap: wrap;">
+            <select name="status" class="pf-select" style="width: auto;">
+                <option value="">All Statuses</option>
+                @foreach(['draft', 'scheduled', 'publishing', 'published', 'failed'] as $status)
+                    <option value="{{ $status }}" {{ request('status') === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
+                @endforeach
+            </select>
+            <select name="platform" class="pf-select" style="width: auto;">
+                <option value="">All Platforms</option>
+                @foreach(['twitter', 'facebook', 'linkedin', 'instagram'] as $platform)
+                    <option value="{{ $platform }}" {{ request('platform') === $platform ? 'selected' : '' }}>{{ ucfirst($platform) }}</option>
+                @endforeach
+            </select>
+            <button type="submit" class="pf-btn pf-btn-secondary">Filter</button>
+            @if(request()->hasAny(['status', 'platform']))
+                <a href="{{ route('posts.index') }}" class="pf-btn pf-btn-ghost">Clear</a>
+            @endif
+        </form>
+    </div>
 </div>
 
 {{-- Posts Table --}}
-<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+<div class="pf-card">
     @if($posts->isEmpty())
-        <div class="px-6 py-12 text-center text-gray-500">
+        <div class="pf-card-body pf-text-center pf-text-muted">
             <p>No posts found.</p>
-            <a href="{{ route('posts.create') }}" class="text-indigo-600 hover:underline mt-2 inline-block">Create your first post</a>
+            <a href="{{ route('posts.create') }}" class="pf-mt-2 pf-inline-block">Create your first post</a>
         </div>
     @else
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+        <table class="pf-table">
+            <thead>
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Content</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platform</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scheduled</th>
-                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th>Content</th>
+                    <th>Platform</th>
+                    <th>Status</th>
+                    <th>Scheduled</th>
+                    <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody>
                 @foreach($posts as $post)
                     <tr>
-                        <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{{ Str::limit($post->content, 60) }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500">{{ $post->socialAccount?->platformLabel() }}</td>
-                        <td class="px-6 py-4">
-                            <span class="px-2 py-1 text-xs rounded-full
-                                {{ $post->status === 'published' ? 'bg-green-100 text-green-800' : '' }}
-                                {{ $post->status === 'scheduled' ? 'bg-blue-100 text-blue-800' : '' }}
-                                {{ $post->status === 'failed' ? 'bg-red-100 text-red-800' : '' }}
-                                {{ $post->status === 'draft' ? 'bg-gray-100 text-gray-800' : '' }}
-                                {{ $post->status === 'publishing' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                        <td class="pf-truncate" style="max-width: 20rem;">{{ Str::limit($post->content, 60) }}</td>
+                        <td>{{ $post->socialAccount?->platformLabel() }}</td>
+                        <td>
+                            <span class="pf-badge
+                                {{ $post->status === 'published' ? 'pf-badge-green' : '' }}
+                                {{ $post->status === 'scheduled' ? 'pf-badge-blue' : '' }}
+                                {{ $post->status === 'failed' ? 'pf-badge-red' : '' }}
+                                {{ $post->status === 'draft' ? 'pf-badge-gray' : '' }}
+                                {{ $post->status === 'publishing' ? 'pf-badge-yellow' : '' }}
                             ">{{ ucfirst($post->status) }}</span>
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-500">
+                        <td>
                             {{ $post->scheduled_at ? $post->scheduled_at->format('M j, Y g:i A') : '-' }}
                         </td>
-                        <td class="px-6 py-4 text-right text-sm space-x-2">
-                            <a href="{{ route('posts.show', $post) }}" class="text-indigo-600 hover:text-indigo-800">View</a>
+                        <td style="text-align: right;">
+                            <a href="{{ route('posts.show', $post) }}" class="pf-btn pf-btn-ghost pf-btn-sm">View</a>
                             @if(in_array($post->status, ['draft', 'scheduled', 'failed']))
-                                <a href="{{ route('posts.edit', $post) }}" class="text-gray-600 hover:text-gray-800">Edit</a>
+                                <a href="{{ route('posts.edit', $post) }}" class="pf-btn pf-btn-ghost pf-btn-sm">Edit</a>
                             @endif
-                            <form method="POST" action="{{ route('posts.destroy', $post) }}" class="inline">
+                            <form method="POST" action="{{ route('posts.destroy', $post) }}" class="pf-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800" onclick="return confirm('Delete this post?')">Delete</button>
+                                <button type="submit" class="pf-btn pf-btn-ghost pf-btn-sm pf-text-danger" onclick="return confirm('Delete this post?')">Delete</button>
                             </form>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-        <div class="px-6 py-4">
+        <div class="pf-pagination">
             {{ $posts->links() }}
         </div>
     @endif

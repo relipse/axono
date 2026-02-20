@@ -2,67 +2,65 @@
 @section('title', 'Subscription Plans')
 
 @section('content')
-<div class="text-center mb-10">
-    <h1 class="text-3xl font-bold text-gray-900">Choose Your Plan</h1>
-    <p class="text-gray-600 mt-2">Start with a 14-day free trial on any plan.</p>
+<div class="pf-text-center pf-mb-8">
+    <h1 class="pf-text-2xl pf-font-bold">Choose Your Plan</h1>
+    <p class="pf-text-muted pf-mt-2">Start with a 14-day free trial on any plan.</p>
 </div>
 
-<div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+<div class="pf-grid pf-grid-3 pf-max-w-5xl">
     @foreach($plans as $plan)
-        <div class="bg-white rounded-lg shadow-sm border-2 {{ $plan->slug === 'professional' ? 'border-indigo-500' : 'border-gray-200' }} p-6 flex flex-col">
+        <div class="pf-pricing-card {{ $plan->slug === 'professional' ? 'featured' : '' }}">
             @if($plan->slug === 'professional')
-                <div class="text-center mb-2">
-                    <span class="bg-indigo-100 text-indigo-800 text-xs font-semibold px-3 py-1 rounded-full">Most Popular</span>
-                </div>
+                <span class="pf-pricing-badge">Most Popular</span>
             @endif
 
-            <h2 class="text-xl font-bold text-gray-900 text-center">{{ $plan->name }}</h2>
-            <div class="text-center my-4">
-                <span class="text-4xl font-bold text-gray-900">${{ number_format($plan->price, 2) }}</span>
-                <span class="text-gray-500">/{{ $plan->billing_cycle }}</span>
+            <h2 class="pf-pricing-name">{{ $plan->name }}</h2>
+            <div class="pf-pricing-price">
+                <span class="amount">${{ number_format($plan->price, 2) }}</span>
+                <span class="period">/{{ $plan->billing_cycle }}</span>
             </div>
 
-            <p class="text-gray-600 text-sm text-center mb-6">{{ $plan->description }}</p>
+            <p class="pf-pricing-desc">{{ $plan->description }}</p>
 
-            <ul class="space-y-3 mb-8 flex-1">
-                <li class="flex items-center text-sm text-gray-700">
-                    <svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+            <ul class="pf-pricing-features">
+                <li>
+                    <svg class="check" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                     {{ $plan->max_social_accounts }} social accounts
                 </li>
-                <li class="flex items-center text-sm text-gray-700">
-                    <svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <li>
+                    <svg class="check" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                     {{ $plan->max_posts_per_day }} posts per day
                 </li>
-                <li class="flex items-center text-sm text-gray-700">
-                    <svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                <li>
+                    <svg class="check" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                     {{ $plan->max_scheduled_posts }} scheduled posts
                 </li>
-                <li class="flex items-center text-sm text-gray-700">
+                <li>
                     @if($plan->can_upload_files)
-                        <svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                        <svg class="check" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                         File uploads (up to {{ $plan->max_file_size_mb }}MB)
                     @else
-                        <svg class="w-4 h-4 text-red-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                        <span class="text-gray-400">No file uploads</span>
+                        <svg class="cross" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="disabled">No file uploads</span>
                     @endif
                 </li>
             </ul>
 
             @auth
                 @if($currentSubscription && $currentSubscription->subscription_plan_id === $plan->id)
-                    <div class="text-center">
-                        <span class="bg-green-100 text-green-800 px-4 py-2 rounded-md text-sm font-semibold">Current Plan</span>
+                    <div class="pf-text-center">
+                        <span class="pf-badge pf-badge-green" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Current Plan</span>
                     </div>
                 @else
                     <form method="POST" action="{{ route('subscription.subscribe', $plan) }}">
                         @csrf
-                        <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ $plan->slug === 'professional' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-900' }}">
+                        <button type="submit" class="pf-btn {{ $plan->slug === 'professional' ? 'pf-btn-primary' : 'pf-btn-secondary' }} pf-w-full">
                             {{ $currentSubscription ? 'Switch to ' . $plan->name : 'Start Free Trial' }}
                         </button>
                     </form>
                 @endif
             @else
-                <a href="{{ route('register') }}" class="w-full block text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white {{ $plan->slug === 'professional' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-900' }}">
+                <a href="{{ route('register') }}" class="pf-btn {{ $plan->slug === 'professional' ? 'pf-btn-primary' : 'pf-btn-secondary' }} pf-w-full">
                     Get Started
                 </a>
             @endauth
@@ -72,10 +70,10 @@
 
 @auth
     @if($currentSubscription)
-        <div class="text-center mt-8">
+        <div class="pf-text-center pf-mt-8">
             <form method="POST" action="{{ route('subscription.cancel') }}">
                 @csrf
-                <button type="submit" class="text-red-600 hover:text-red-800 text-sm" onclick="return confirm('Are you sure you want to cancel your subscription?')">
+                <button type="submit" class="pf-btn pf-btn-ghost pf-text-danger" onclick="return confirm('Are you sure you want to cancel your subscription?')">
                     Cancel Subscription
                 </button>
             </form>

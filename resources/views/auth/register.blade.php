@@ -3,41 +3,41 @@
 @section('heading', 'Create your account')
 
 @section('content')
-<form method="POST" action="{{ route('register') }}" class="space-y-6">
+<form method="POST" action="{{ route('register') }}">
     @csrf
 
-    <div>
-        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+    <div class="pf-form-group">
+        <label for="name" class="pf-label">Name</label>
         <input id="name" type="text" name="name" value="{{ old('name') }}" required autofocus
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div>
-        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+    <div class="pf-form-group">
+        <label for="email" class="pf-label">Email</label>
         <input id="email" type="email" name="email" value="{{ old('email') }}" required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div>
-        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+    <div class="pf-form-group">
+        <label for="password" class="pf-label">Password</label>
         <input id="password" type="password" name="password" required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div>
-        <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+    <div class="pf-form-group">
+        <label for="password_confirmation" class="pf-label">Confirm Password</label>
         <input id="password_confirmation" type="password" name="password_confirmation" required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div>
-        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+    <div class="pf-form-group">
+        <button type="submit" class="pf-btn pf-btn-primary pf-w-full">
             Register
         </button>
     </div>
 
-    <p class="text-center text-sm text-gray-600">
-        Already have an account? <a href="{{ route('login') }}" class="text-indigo-600 hover:text-indigo-500">Login</a>
+    <p class="pf-text-center pf-text-sm pf-text-muted">
+        Already have an account? <a href="{{ route('login') }}">Login</a>
     </p>
 </form>
 @endsection

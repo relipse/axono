@@ -5,21 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name') }} - @yield('title', 'Welcome')</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col justify-center">
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <h1 class="text-center text-3xl font-bold text-indigo-600 mb-2">
+<body>
+    <div class="pf-auth-wrapper">
+        <div class="pf-auth-brand">
             <a href="{{ route('home') }}">{{ config('app.name') }}</a>
-        </h1>
-        <h2 class="text-center text-xl text-gray-600 mb-8">@yield('heading')</h2>
-    </div>
+        </div>
+        <h2 class="pf-auth-heading">@yield('heading')</h2>
 
-    <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="bg-white py-8 px-6 shadow rounded-lg sm:px-10">
+        <div class="pf-auth-card">
             @if($errors->any())
-                <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
-                    <ul class="list-disc list-inside text-sm">
+                <div class="pf-alert pf-alert-danger pf-mb-6">
+                    <ul>
                         @foreach($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach

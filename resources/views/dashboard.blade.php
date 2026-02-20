@@ -2,126 +2,122 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<div class="mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+<div class="pf-mb-6">
+    <h1 class="pf-text-2xl pf-font-bold">Dashboard</h1>
     @if($plan)
-        <p class="text-sm text-gray-500 mt-1">
-            Current plan: <span class="font-semibold text-indigo-600">{{ $plan->name }}</span>
+        <p class="pf-text-sm pf-text-muted pf-mt-1">
+            Current plan: <span class="pf-font-semibold" style="color: var(--pf-primary-600);">{{ $plan->name }}</span>
             @if($subscription->status === 'trial')
-                <span class="text-yellow-600">(Trial - ends {{ $subscription->trial_ends_at->diffForHumans() }})</span>
+                <span style="color: var(--pf-warning-700);">(Trial - ends {{ $subscription->trial_ends_at->diffForHumans() }})</span>
             @endif
         </p>
     @else
-        <div class="mt-2 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md">
-            You don't have an active subscription. <a href="{{ route('subscription.plans') }}" class="font-semibold underline">Choose a plan</a> to get started.
+        <div class="pf-alert pf-alert-warning pf-mt-2">
+            You don't have an active subscription. <a href="{{ route('subscription.plans') }}" class="pf-font-semibold" style="text-decoration: underline;">Choose a plan</a> to get started.
         </div>
     @endif
 </div>
 
 {{-- Stats Grid --}}
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Total Posts</p>
-        <p class="text-2xl font-bold text-gray-900">{{ $stats['total_posts'] }}</p>
+<div class="pf-grid pf-grid-4 pf-mb-8">
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Total Posts</p>
+        <p class="pf-stat-value">{{ $stats['total_posts'] }}</p>
     </div>
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Published</p>
-        <p class="text-2xl font-bold text-green-600">{{ $stats['published_posts'] }}</p>
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Published</p>
+        <p class="pf-stat-value green">{{ $stats['published_posts'] }}</p>
     </div>
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Scheduled</p>
-        <p class="text-2xl font-bold text-blue-600">{{ $stats['scheduled_posts'] }}</p>
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Scheduled</p>
+        <p class="pf-stat-value blue">{{ $stats['scheduled_posts'] }}</p>
     </div>
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Failed</p>
-        <p class="text-2xl font-bold text-red-600">{{ $stats['failed_posts'] }}</p>
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Failed</p>
+        <p class="pf-stat-value red">{{ $stats['failed_posts'] }}</p>
     </div>
 </div>
 
-<div class="grid md:grid-cols-3 gap-4 mb-8">
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Social Accounts</p>
-        <p class="text-2xl font-bold text-gray-900">{{ $stats['social_accounts'] }}</p>
+<div class="pf-grid pf-grid-3 pf-mb-8">
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Social Accounts</p>
+        <p class="pf-stat-value">{{ $stats['social_accounts'] }}</p>
         @if($plan)
-            <p class="text-xs text-gray-400">of {{ $plan->max_social_accounts }} allowed</p>
+            <p class="pf-stat-note">of {{ $plan->max_social_accounts }} allowed</p>
         @endif
     </div>
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Active Schedules</p>
-        <p class="text-2xl font-bold text-gray-900">{{ $stats['active_schedules'] }}</p>
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Active Schedules</p>
+        <p class="pf-stat-value">{{ $stats['active_schedules'] }}</p>
     </div>
-    <div class="bg-white rounded-lg shadow-sm p-4">
-        <p class="text-sm text-gray-500">Data Files</p>
-        <p class="text-2xl font-bold text-gray-900">{{ $stats['data_files'] }}</p>
+    <div class="pf-stat-card">
+        <p class="pf-stat-label">Data Files</p>
+        <p class="pf-stat-value">{{ $stats['data_files'] }}</p>
     </div>
 </div>
 
 {{-- Quick Actions --}}
-<div class="flex flex-wrap gap-3 mb-8">
-    <a href="{{ route('posts.create') }}" class="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm hover:bg-indigo-700">New Post</a>
-    <a href="{{ route('social-accounts.create') }}" class="bg-white text-indigo-600 border border-indigo-600 px-4 py-2 rounded-md text-sm hover:bg-indigo-50">Connect Account</a>
-    <a href="{{ route('schedules.create') }}" class="bg-white text-indigo-600 border border-indigo-600 px-4 py-2 rounded-md text-sm hover:bg-indigo-50">New Schedule</a>
+<div class="pf-actions-bar">
+    <a href="{{ route('posts.create') }}" class="pf-btn pf-btn-primary">New Post</a>
+    <a href="{{ route('social-accounts.create') }}" class="pf-btn pf-btn-secondary">Connect Account</a>
+    <a href="{{ route('schedules.create') }}" class="pf-btn pf-btn-secondary">New Schedule</a>
 </div>
 
 {{-- Recent Posts --}}
-<div class="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Recent Posts</h2>
+<div class="pf-card pf-mb-8">
+    <div class="pf-card-header">
+        <h2>Recent Posts</h2>
     </div>
     @if($recentPosts->isEmpty())
-        <div class="px-6 py-8 text-center text-gray-500">
-            No posts yet. <a href="{{ route('posts.create') }}" class="text-indigo-600 hover:underline">Create your first post</a>.
+        <div class="pf-card-body pf-text-center pf-text-muted">
+            No posts yet. <a href="{{ route('posts.create') }}">Create your first post</a>.
         </div>
     @else
-        <div class="divide-y divide-gray-200">
-            @foreach($recentPosts as $post)
-                <div class="px-6 py-4 flex items-center justify-between">
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm text-gray-900 truncate">{{ Str::limit($post->content, 80) }}</p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            {{ $post->socialAccount?->platformLabel() }} &middot;
-                            @if($post->status === 'published')
-                                Published {{ $post->published_at->diffForHumans() }}
-                            @elseif($post->status === 'scheduled')
-                                Scheduled for {{ $post->scheduled_at->format('M j, Y g:i A') }}
-                            @else
-                                {{ ucfirst($post->status) }}
-                            @endif
-                        </p>
-                    </div>
-                    <span class="ml-4 px-2 py-1 text-xs rounded-full
-                        {{ $post->status === 'published' ? 'bg-green-100 text-green-800' : '' }}
-                        {{ $post->status === 'scheduled' ? 'bg-blue-100 text-blue-800' : '' }}
-                        {{ $post->status === 'failed' ? 'bg-red-100 text-red-800' : '' }}
-                        {{ $post->status === 'draft' ? 'bg-gray-100 text-gray-800' : '' }}
-                        {{ $post->status === 'publishing' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                    ">
-                        {{ ucfirst($post->status) }}
-                    </span>
+        @foreach($recentPosts as $post)
+            <div class="pf-list-item">
+                <div style="flex: 1; min-width: 0;">
+                    <p class="pf-text-sm pf-truncate">{{ Str::limit($post->content, 80) }}</p>
+                    <p class="pf-text-xs pf-text-muted pf-mt-1">
+                        {{ $post->socialAccount?->platformLabel() }} &middot;
+                        @if($post->status === 'published')
+                            Published {{ $post->published_at->diffForHumans() }}
+                        @elseif($post->status === 'scheduled')
+                            Scheduled for {{ $post->scheduled_at->format('M j, Y g:i A') }}
+                        @else
+                            {{ ucfirst($post->status) }}
+                        @endif
+                    </p>
                 </div>
-            @endforeach
-        </div>
+                <span class="pf-badge
+                    {{ $post->status === 'published' ? 'pf-badge-green' : '' }}
+                    {{ $post->status === 'scheduled' ? 'pf-badge-blue' : '' }}
+                    {{ $post->status === 'failed' ? 'pf-badge-red' : '' }}
+                    {{ $post->status === 'draft' ? 'pf-badge-gray' : '' }}
+                    {{ $post->status === 'publishing' ? 'pf-badge-yellow' : '' }}
+                ">
+                    {{ ucfirst($post->status) }}
+                </span>
+            </div>
+        @endforeach
     @endif
 </div>
 
 {{-- Recent Activity --}}
-<div class="bg-white rounded-lg shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-900">Recent Activity</h2>
+<div class="pf-card">
+    <div class="pf-card-header">
+        <h2>Recent Activity</h2>
     </div>
     @if($recentActivity->isEmpty())
-        <div class="px-6 py-8 text-center text-gray-500">
+        <div class="pf-card-body pf-text-center pf-text-muted">
             No recent activity.
         </div>
     @else
-        <div class="divide-y divide-gray-200">
-            @foreach($recentActivity as $log)
-                <div class="px-6 py-3">
-                    <p class="text-sm text-gray-700">{{ str_replace('.', ' ', $log->action) }}</p>
-                    <p class="text-xs text-gray-400">{{ $log->created_at->diffForHumans() }}</p>
-                </div>
-            @endforeach
-        </div>
+        @foreach($recentActivity as $log)
+            <div class="pf-list-item" style="flex-direction: column; align-items: flex-start;">
+                <p class="pf-text-sm">{{ str_replace('.', ' ', $log->action) }}</p>
+                <p class="pf-text-xs pf-text-muted">{{ $log->created_at->diffForHumans() }}</p>
+            </div>
+        @endforeach
     @endif
 </div>
 @endsection

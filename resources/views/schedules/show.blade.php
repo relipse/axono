@@ -2,78 +2,80 @@
 @section('title', 'Schedule Details')
 
 @section('content')
-<div class="max-w-2xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">{{ $schedule->name }}</h1>
-        <a href="{{ route('schedules.index') }}" class="text-gray-500 hover:text-gray-700 text-sm">&larr; Back</a>
+<div class="pf-max-w-2xl">
+    <div class="pf-page-header">
+        <h1>{{ $schedule->name }}</h1>
+        <a href="{{ route('schedules.index') }}" class="pf-btn pf-btn-ghost pf-btn-sm">&larr; Back</a>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm p-6 space-y-4">
-        <div class="flex items-center space-x-2">
-            <span class="px-2 py-1 text-xs rounded-full {{ $schedule->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' }}">
-                {{ $schedule->is_active ? 'Active' : 'Paused' }}
-            </span>
-        </div>
+    <div class="pf-card">
+        <div class="pf-card-body">
+            <div class="pf-mb-4">
+                <span class="pf-badge {{ $schedule->is_active ? 'pf-badge-green' : 'pf-badge-gray' }}">
+                    {{ $schedule->is_active ? 'Active' : 'Paused' }}
+                </span>
+            </div>
 
-        @if($schedule->description)
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Description</h3>
-                <p class="text-gray-900">{{ $schedule->description }}</p>
-            </div>
-        @endif
+            @if($schedule->description)
+                <div class="pf-mb-4">
+                    <h3 class="pf-label">Description</h3>
+                    <p>{{ $schedule->description }}</p>
+                </div>
+            @endif
 
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Social Account</h3>
-                <p class="text-gray-900">{{ $schedule->socialAccount?->platformLabel() }} - {{ $schedule->socialAccount?->username }}</p>
+            <div class="pf-grid pf-grid-2 pf-mb-4">
+                <div>
+                    <h3 class="pf-label">Social Account</h3>
+                    <p>{{ $schedule->socialAccount?->platformLabel() }} - {{ $schedule->socialAccount?->username }}</p>
+                </div>
+                <div>
+                    <h3 class="pf-label">Data File</h3>
+                    <p>{{ $schedule->dataFile?->name ?? 'None' }}</p>
+                </div>
+                <div>
+                    <h3 class="pf-label">Cron Expression</h3>
+                    <p class="pf-font-mono">{{ $schedule->cron_expression }}</p>
+                </div>
+                <div>
+                    <h3 class="pf-label">Timezone</h3>
+                    <p>{{ $schedule->timezone }}</p>
+                </div>
+                <div>
+                    <h3 class="pf-label">Posts Per Run</h3>
+                    <p>{{ $schedule->posts_per_run }}</p>
+                </div>
+                <div>
+                    <h3 class="pf-label">Progress</h3>
+                    <p>{{ $schedule->current_line }} / {{ $schedule->dataFile?->total_lines ?? 0 }} lines</p>
+                </div>
             </div>
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Data File</h3>
-                <p class="text-gray-900">{{ $schedule->dataFile?->name ?? 'None' }}</p>
-            </div>
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Cron Expression</h3>
-                <p class="text-gray-900 font-mono">{{ $schedule->cron_expression }}</p>
-            </div>
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Timezone</h3>
-                <p class="text-gray-900">{{ $schedule->timezone }}</p>
-            </div>
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Posts Per Run</h3>
-                <p class="text-gray-900">{{ $schedule->posts_per_run }}</p>
-            </div>
-            <div>
-                <h3 class="text-sm font-medium text-gray-500">Progress</h3>
-                <p class="text-gray-900">{{ $schedule->current_line }} / {{ $schedule->dataFile?->total_lines ?? 0 }} lines</p>
-            </div>
-        </div>
 
-        @if($schedule->last_run_at || $schedule->next_run_at)
-            <div class="border-t border-gray-200 pt-4 grid grid-cols-2 gap-4">
-                @if($schedule->last_run_at)
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500">Last Run</h3>
-                        <p class="text-gray-900">{{ $schedule->last_run_at->format('M j, Y g:i A') }}</p>
-                    </div>
-                @endif
-                @if($schedule->next_run_at)
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500">Next Run</h3>
-                        <p class="text-gray-900">{{ $schedule->next_run_at->format('M j, Y g:i A') }}</p>
-                    </div>
-                @endif
-            </div>
-        @endif
+            @if($schedule->last_run_at || $schedule->next_run_at)
+                <div class="pf-grid pf-grid-2 pf-mt-4" style="padding-top: 1rem; border-top: 1px solid var(--pf-gray-200);">
+                    @if($schedule->last_run_at)
+                        <div>
+                            <h3 class="pf-label">Last Run</h3>
+                            <p>{{ $schedule->last_run_at->format('M j, Y g:i A') }}</p>
+                        </div>
+                    @endif
+                    @if($schedule->next_run_at)
+                        <div>
+                            <h3 class="pf-label">Next Run</h3>
+                            <p>{{ $schedule->next_run_at->format('M j, Y g:i A') }}</p>
+                        </div>
+                    @endif
+                </div>
+            @endif
 
-        <div class="flex space-x-3 pt-4 border-t border-gray-200">
-            <a href="{{ route('schedules.edit', $schedule) }}" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700">Edit</a>
-            <form method="POST" action="{{ route('schedules.toggle', $schedule) }}">
-                @csrf
-                <button type="submit" class="px-4 py-2 {{ $schedule->is_active ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-600 hover:bg-green-700' }} text-white rounded-md text-sm">
-                    {{ $schedule->is_active ? 'Pause' : 'Resume' }}
-                </button>
-            </form>
+            <div class="pf-flex pf-gap-3 pf-mt-6" style="padding-top: 1rem; border-top: 1px solid var(--pf-gray-200);">
+                <a href="{{ route('schedules.edit', $schedule) }}" class="pf-btn pf-btn-primary">Edit</a>
+                <form method="POST" action="{{ route('schedules.toggle', $schedule) }}">
+                    @csrf
+                    <button type="submit" class="pf-btn pf-btn-secondary">
+                        {{ $schedule->is_active ? 'Pause' : 'Resume' }}
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

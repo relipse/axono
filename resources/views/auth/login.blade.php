@@ -3,37 +3,36 @@
 @section('heading', 'Sign in to your account')
 
 @section('content')
-<form method="POST" action="{{ route('login') }}" class="space-y-6">
+<form method="POST" action="{{ route('login') }}">
     @csrf
 
-    <div>
-        <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+    <div class="pf-form-group">
+        <label for="email" class="pf-label">Email</label>
         <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div>
-        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+    <div class="pf-form-group">
+        <label for="password" class="pf-label">Password</label>
         <input id="password" type="password" name="password" required
-            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 px-3 py-2 border">
+            class="pf-input">
     </div>
 
-    <div class="flex items-center justify-between">
-        <div class="flex items-center">
-            <input id="remember" type="checkbox" name="remember"
-                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-            <label for="remember" class="ml-2 block text-sm text-gray-700">Remember me</label>
+    <div class="pf-form-group">
+        <div class="pf-checkbox-group">
+            <input id="remember" type="checkbox" name="remember" class="pf-checkbox">
+            <label for="remember" class="pf-text-sm">Remember me</label>
         </div>
     </div>
 
-    <div>
-        <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+    <div class="pf-form-group">
+        <button type="submit" class="pf-btn pf-btn-primary pf-w-full">
             Sign In
         </button>
     </div>
 
-    <p class="text-center text-sm text-gray-600">
-        Don't have an account? <a href="{{ route('register') }}" class="text-indigo-600 hover:text-indigo-500">Register</a>
+    <p class="pf-text-center pf-text-sm pf-text-muted">
+        Don't have an account? <a href="{{ route('register') }}">Register</a>
     </p>
 </form>
 @endsection
