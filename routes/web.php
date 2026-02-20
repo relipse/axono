@@ -7,9 +7,14 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataFileController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostScheduleController;
+use App\Http\Controllers\SetupController;
 use App\Http\Controllers\SocialAccountController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
+
+// Setup wizard (first-run only)
+Route::get('/setup', [SetupController::class, 'index'])->name('setup.index');
+Route::post('/setup', [SetupController::class, 'run'])->name('setup.run');
 
 // Public routes
 Route::get('/', function () {
