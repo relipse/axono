@@ -1,0 +1,650 @@
+#!/usr/bin/env python3
+"""
+claude-worker-gui — A graphical interface for claude-worker + manager.
+
+Uses Tkinter (ships with Python on macOS and Linux).
+No external dependencies required.
+
+Usage:
+    ./claude-worker-gui
+    python3 claude-worker-gui
+"""
+
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+import tkinter as tk
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).parent.resolve()
+WORKER_SCRIPT = SCRIPT_DIR / "claude-worker"
+OUTPUT_DIR = SCRIPT_DIR / "output"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Worker Tab — Launch and configure Claude worker tasks
+# ═════════════════════════════════════════════════════════════════════════════
+
+class WorkerTab:
+    def __init__(self, parent: ttk.Frame, app: "ClaudeWorkerApp"):
+        self.app = app
+        self.process = None
+        self.last_run_dir = None
+        self._build(parent)
+
+    def _build(self, parent):
+        main = ttk.Frame(parent, padding=8)
+        main.pack(fill=tk.BOTH, expand=True)
+
+        # ── Required Fields ──────────────────────────────────────────────────
+        req = ttk.LabelFrame(main, text="Required", padding=8)
+        req.pack(fill=tk.X, pady=(0, 6))
+
+        # API Key
+        row = ttk.Frame(req)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="API Key:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.api_key_var = tk.StringVar(value=os.environ.get("ANTHROPIC_API_KEY", ""))
+        self.api_key_entry = ttk.Entry(row, textvariable=self.api_key_var, show="*")
+        self.api_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        self.show_key_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(row, text="Show", variable=self.show_key_var,
+                         command=lambda: self.api_key_entry.config(
+                             show="" if self.show_key_var.get() else "*")).pack(side=tk.RIGHT)
+
+        # Repo source selector: URL or Local
+        row = ttk.Frame(req)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="Repo Source:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.repo_source_var = tk.StringVar(value="url")
+        ttk.Radiobutton(row, text="URL", variable=self.repo_source_var, value="url",
+                         command=self._toggle_repo_source).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Radiobutton(row, text="Local Directory", variable=self.repo_source_var, value="local",
+                         command=self._toggle_repo_source).pack(side=tk.LEFT)
+
+        # Repo URL row
+        self.repo_url_frame = ttk.Frame(req)
+        self.repo_url_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(self.repo_url_frame, text="Repo URL:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.repo_url_var = tk.StringVar()
+        ttk.Entry(self.repo_url_frame, textvariable=self.repo_url_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Local repo row (hidden by default)
+        self.local_repo_frame = ttk.Frame(req)
+        ttk.Label(self.local_repo_frame, text="Local Repo:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.local_repo_var = tk.StringVar()
+        ttk.Entry(self.local_repo_frame, textvariable=self.local_repo_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        ttk.Button(self.local_repo_frame, text="Browse",
+                    command=lambda: self._browse_dir(self.local_repo_var, "Select git repository")).pack(side=tk.RIGHT)
+
+        # Task
+        row = ttk.Frame(req)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="Task:", width=12, anchor=tk.W).pack(side=tk.LEFT, anchor=tk.N)
+        self.task_text = tk.Text(row, height=3, wrap=tk.WORD)
+        self.task_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # ── Options ──────────────────────────────────────────────────────────
+        opts = ttk.LabelFrame(main, text="Options", padding=8)
+        opts.pack(fill=tk.X, pady=(0, 6))
+
+        # Branch + Repo Branch
+        row = ttk.Frame(opts)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="Branch:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.branch_var = tk.StringVar()
+        ttk.Entry(row, textvariable=self.branch_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
+        ttk.Label(row, text="Repo Branch:").pack(side=tk.LEFT)
+        self.repo_branch_var = tk.StringVar()
+        ttk.Entry(row, textvariable=self.repo_branch_var, width=18).pack(side=tk.LEFT)
+
+        # Model + Max Turns
+        row = ttk.Frame(opts)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="Model:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.model_var = tk.StringVar()
+        ttk.Combobox(row, textvariable=self.model_var, width=32, values=[
+            "", "claude-opus-4-20250514", "claude-sonnet-4-20250514",
+            "claude-haiku-4-5-20251001",
+        ]).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Label(row, text="Max Turns:").pack(side=tk.LEFT)
+        self.max_turns_var = tk.StringVar()
+        ttk.Entry(row, textvariable=self.max_turns_var, width=8).pack(side=tk.LEFT)
+
+        # Diff tool + Transfer path
+        row = ttk.Frame(opts)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text="Diff Tool:", width=12, anchor=tk.W).pack(side=tk.LEFT)
+        self.diff_tool_var = tk.StringVar()
+        ttk.Combobox(row, textvariable=self.diff_tool_var, width=13, values=[
+            "", "code", "meld", "vimdiff", "opendiff", "kdiff3"
+        ]).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Label(row, text="Transfer To:").pack(side=tk.LEFT)
+        self.transfer_var = tk.StringVar()
+        ttk.Entry(row, textvariable=self.transfer_var).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        ttk.Button(row, text="Browse",
+                    command=lambda: self._browse_dir(self.transfer_var, "Select local repo")).pack(side=tk.RIGHT)
+
+        # Checkboxes
+        row = ttk.Frame(opts)
+        row.pack(fill=tk.X, pady=4)
+        self.push_var = tk.BooleanVar()
+        ttk.Checkbutton(row, text="Push to remote", variable=self.push_var).pack(side=tk.LEFT, padx=(0, 14))
+        self.rebuild_var = tk.BooleanVar()
+        ttk.Checkbutton(row, text="Rebuild image", variable=self.rebuild_var).pack(side=tk.LEFT, padx=(0, 14))
+        self.verbose_var = tk.BooleanVar()
+        ttk.Checkbutton(row, text="Verbose", variable=self.verbose_var).pack(side=tk.LEFT)
+
+        # ── Action Buttons ───────────────────────────────────────────────────
+        btns = ttk.Frame(main)
+        btns.pack(fill=tk.X, pady=(0, 6))
+
+        self.run_btn = ttk.Button(btns, text="Run Worker", command=self._run)
+        self.run_btn.pack(side=tk.LEFT, padx=(0, 6))
+        self.dry_run_btn = ttk.Button(btns, text="Dry Run", command=self._dry_run)
+        self.dry_run_btn.pack(side=tk.LEFT, padx=(0, 6))
+        self.stop_btn = ttk.Button(btns, text="Stop", command=self._stop, state=tk.DISABLED)
+        self.stop_btn.pack(side=tk.LEFT, padx=(0, 14))
+
+        self.open_btn = ttk.Button(btns, text="Open Output", command=self._open_output, state=tk.DISABLED)
+        self.open_btn.pack(side=tk.RIGHT)
+        self.diff_btn = ttk.Button(btns, text="View Diff", command=self._view_diff, state=tk.DISABLED)
+        self.diff_btn.pack(side=tk.RIGHT, padx=(0, 6))
+
+        # ── Log ──────────────────────────────────────────────────────────────
+        log_frame = ttk.LabelFrame(main, text="Output", padding=4)
+        log_frame.pack(fill=tk.BOTH, expand=True)
+        self.log_text = scrolledtext.ScrolledText(
+            log_frame, wrap=tk.WORD, font=("Courier", 11),
+            background="#1e1e1e", foreground="#d4d4d4", insertbackground="#d4d4d4"
+        )
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+        self.log_text.config(state=tk.DISABLED)
+
+    # ── Repo source toggle ───────────────────────────────────────────────────
+
+    def _toggle_repo_source(self):
+        if self.repo_source_var.get() == "url":
+            self.local_repo_frame.pack_forget()
+            self.repo_url_frame.pack(fill=tk.X, pady=2, after=self.repo_url_frame.master.winfo_children()[1])
+        else:
+            self.repo_url_frame.pack_forget()
+            self.local_repo_frame.pack(fill=tk.X, pady=2, after=self.local_repo_frame.master.winfo_children()[1])
+
+    def _browse_dir(self, var: tk.StringVar, title: str):
+        path = filedialog.askdirectory(title=title)
+        if path:
+            var.set(path)
+
+    # ── Log helper ───────────────────────────────────────────────────────────
+
+    def _log(self, text: str):
+        def _a():
+            self.log_text.config(state=tk.NORMAL)
+            self.log_text.insert(tk.END, text)
+            self.log_text.see(tk.END)
+            self.log_text.config(state=tk.DISABLED)
+        self.app.root.after(0, _a)
+
+    def _set_running(self, running: bool):
+        def _u():
+            st = tk.DISABLED if running else tk.NORMAL
+            self.run_btn.config(state=st)
+            self.dry_run_btn.config(state=st)
+            self.stop_btn.config(state=tk.NORMAL if running else tk.DISABLED)
+        self.app.root.after(0, _u)
+
+    # ── Build command ────────────────────────────────────────────────────────
+
+    def _build_cmd(self, dry_run=False):
+        task = self.task_text.get("1.0", tk.END).strip()
+        api_key = self.api_key_var.get().strip()
+        if not task:
+            messagebox.showerror("Missing", "Task is required.")
+            return None
+        if not api_key:
+            messagebox.showerror("Missing", "API Key is required.")
+            return None
+
+        cmd = [str(WORKER_SCRIPT)]
+
+        if self.repo_source_var.get() == "local":
+            lp = self.local_repo_var.get().strip()
+            if not lp:
+                messagebox.showerror("Missing", "Local repo path is required.")
+                return None
+            cmd += ["--local-repo", lp]
+        else:
+            url = self.repo_url_var.get().strip()
+            if not url:
+                messagebox.showerror("Missing", "Repo URL is required.")
+                return None
+            cmd += ["--repo", url]
+
+        cmd += ["--task", task, "--no-review"]
+
+        for flag, var in [("--branch", self.branch_var), ("--repo-branch", self.repo_branch_var),
+                          ("--model", self.model_var), ("--max-turns", self.max_turns_var),
+                          ("--diff-tool", self.diff_tool_var), ("--transfer", self.transfer_var)]:
+            v = var.get().strip()
+            if v:
+                cmd += [flag, v]
+        for flag, var in [("--push", self.push_var), ("--rebuild", self.rebuild_var),
+                          ("--verbose", self.verbose_var)]:
+            if var.get():
+                cmd.append(flag)
+        if dry_run:
+            cmd.append("--dry-run")
+        return cmd
+
+    # ── Execute ──────────────────────────────────────────────────────────────
+
+    def _run(self):
+        cmd = self._build_cmd()
+        if cmd:
+            self._execute(cmd)
+
+    def _dry_run(self):
+        cmd = self._build_cmd(dry_run=True)
+        if cmd:
+            self._execute(cmd)
+
+    def _execute(self, cmd):
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.delete("1.0", tk.END)
+        self.log_text.config(state=tk.DISABLED)
+        self._set_running(True)
+        self.app.set_status("Running...")
+        self._log(f"$ {' '.join(cmd)}\n\n")
+
+        env = os.environ.copy()
+        env["ANTHROPIC_API_KEY"] = self.api_key_var.get().strip()
+
+        def _worker():
+            try:
+                self.process = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    env=env, text=True, bufsize=1)
+                for line in self.process.stdout:
+                    self._log(line)
+                self.process.wait()
+                ec = self.process.returncode
+                self._log(f"\n--- Exited with code {ec} ---\n")
+                self.app.set_status(f"Finished (exit {ec})")
+                self._detect_output()
+            except Exception as e:
+                self._log(f"\nError: {e}\n")
+                self.app.set_status(f"Error: {e}")
+            finally:
+                self.process = None
+                self._set_running(False)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _stop(self):
+        if self.process:
+            self._log("\n--- Stopping... ---\n")
+            self.process.terminate()
+            self.app.set_status("Stopped")
+
+    def _detect_output(self):
+        if not OUTPUT_DIR.exists():
+            return
+        runs = sorted(OUTPUT_DIR.iterdir(), reverse=True)
+        if runs:
+            self.last_run_dir = runs[0]
+            def _e():
+                self.open_btn.config(state=tk.NORMAL)
+                p = self.last_run_dir / "diffs" / "full.patch"
+                if p.exists() and p.stat().st_size > 0:
+                    self.diff_btn.config(state=tk.NORMAL)
+            self.app.root.after(0, _e)
+
+    def _open_output(self):
+        if self.last_run_dir and self.last_run_dir.exists():
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.Popen([opener, str(self.last_run_dir)])
+
+    def _view_diff(self):
+        if not self.last_run_dir:
+            return
+        patch = self.last_run_dir / "diffs" / "full.patch"
+        if not patch.exists():
+            messagebox.showinfo("No Diff", "No diff file found.")
+            return
+        DiffViewer(self.app.root, patch, self.diff_tool_var.get().strip())
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Manager Tab — Monitor running workers and review completed runs
+# ═════════════════════════════════════════════════════════════════════════════
+
+class ManagerTab:
+    def __init__(self, parent: ttk.Frame, app: "ClaudeWorkerApp"):
+        self.app = app
+        self._build(parent)
+        self._auto_refresh()
+
+    def _build(self, parent):
+        main = ttk.Frame(parent, padding=8)
+        main.pack(fill=tk.BOTH, expand=True)
+
+        # ── Running Workers ──────────────────────────────────────────────────
+        run_frame = ttk.LabelFrame(main, text="Running Workers", padding=6)
+        run_frame.pack(fill=tk.X, pady=(0, 6))
+
+        cols = ("id", "name", "status", "created")
+        self.workers_tree = ttk.Treeview(run_frame, columns=cols, show="headings", height=4)
+        self.workers_tree.heading("id", text="ID")
+        self.workers_tree.heading("name", text="Name")
+        self.workers_tree.heading("status", text="Status")
+        self.workers_tree.heading("created", text="Created")
+        self.workers_tree.column("id", width=100)
+        self.workers_tree.column("name", width=250)
+        self.workers_tree.column("status", width=150)
+        self.workers_tree.column("created", width=200)
+        self.workers_tree.pack(fill=tk.X, pady=(0, 4))
+
+        wbtn = ttk.Frame(run_frame)
+        wbtn.pack(fill=tk.X)
+        ttk.Button(wbtn, text="Refresh", command=self._refresh_workers).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(wbtn, text="View Logs", command=self._view_worker_logs).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(wbtn, text="Stop Selected", command=self._stop_selected).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(wbtn, text="Stop All", command=self._stop_all).pack(side=tk.LEFT)
+
+        # ── Completed Runs ───────────────────────────────────────────────────
+        runs_frame = ttk.LabelFrame(main, text="Completed Runs", padding=6)
+        runs_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 6))
+
+        rcols = ("run_id", "status", "files", "branch", "task")
+        self.runs_tree = ttk.Treeview(runs_frame, columns=rcols, show="headings", height=10)
+        self.runs_tree.heading("run_id", text="Run ID")
+        self.runs_tree.heading("status", text="Status")
+        self.runs_tree.heading("files", text="Files")
+        self.runs_tree.heading("branch", text="Branch")
+        self.runs_tree.heading("task", text="Task")
+        self.runs_tree.column("run_id", width=160)
+        self.runs_tree.column("status", width=70)
+        self.runs_tree.column("files", width=50)
+        self.runs_tree.column("branch", width=180)
+        self.runs_tree.column("task", width=300)
+
+        scroll = ttk.Scrollbar(runs_frame, orient=tk.VERTICAL, command=self.runs_tree.yview)
+        self.runs_tree.configure(yscrollcommand=scroll.set)
+        self.runs_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        rbtn = ttk.Frame(main)
+        rbtn.pack(fill=tk.X)
+        ttk.Button(rbtn, text="Refresh Runs", command=self._refresh_runs).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(rbtn, text="View Diff", command=self._view_run_diff).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(rbtn, text="View Summary", command=self._view_run_summary).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(rbtn, text="Open Folder", command=self._open_run_folder).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(rbtn, text="Delete Run", command=self._delete_run).pack(side=tk.RIGHT)
+
+        # Initial load
+        self._refresh_workers()
+        self._refresh_runs()
+
+    def _auto_refresh(self):
+        """Auto-refresh running workers every 10 seconds."""
+        self._refresh_workers()
+        self.app.root.after(10000, self._auto_refresh)
+
+    def _refresh_workers(self):
+        for item in self.workers_tree.get_children():
+            self.workers_tree.delete(item)
+        try:
+            out = subprocess.run(
+                ["docker", "ps", "--filter", "name=claude-worker-",
+                 "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.CreatedAt}}"],
+                capture_output=True, text=True, timeout=5
+            ).stdout.strip()
+        except Exception:
+            return
+        if not out:
+            return
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 4:
+                self.workers_tree.insert("", tk.END, values=(
+                    parts[0][:12], parts[1], parts[2], parts[3]))
+
+    def _refresh_runs(self):
+        for item in self.runs_tree.get_children():
+            self.runs_tree.delete(item)
+        if not OUTPUT_DIR.exists():
+            return
+        for d in sorted(OUTPUT_DIR.iterdir(), reverse=True):
+            if not d.is_dir():
+                continue
+            info, result = {}, {}
+            try:
+                f = d / "run-info.json"
+                if f.exists():
+                    info = json.loads(f.read_text())
+            except Exception:
+                pass
+            try:
+                f = d / "run-result.json"
+                if f.exists():
+                    result = json.loads(f.read_text())
+            except Exception:
+                pass
+            self.runs_tree.insert("", tk.END, iid=str(d), values=(
+                d.name,
+                result.get("status", "?"),
+                result.get("files_changed", "?"),
+                info.get("branch_name", "?"),
+                (info.get("task", "?") or "?")[:80],
+            ))
+
+    def _get_selected_worker(self):
+        sel = self.workers_tree.selection()
+        if not sel:
+            messagebox.showinfo("Select", "Select a running worker first.")
+            return None
+        return self.workers_tree.item(sel[0], "values")
+
+    def _view_worker_logs(self):
+        w = self._get_selected_worker()
+        if not w:
+            return
+        name = w[1]
+        # Open logs in a new window
+        win = tk.Toplevel(self.app.root)
+        win.title(f"Logs — {name}")
+        win.geometry("900x500")
+        txt = scrolledtext.ScrolledText(win, wrap=tk.WORD, font=("Courier", 11),
+                                         background="#1e1e1e", foreground="#d4d4d4")
+        txt.pack(fill=tk.BOTH, expand=True)
+
+        def _tail():
+            try:
+                proc = subprocess.Popen(
+                    ["docker", "logs", "-f", "--tail", "200", name],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                for line in proc.stdout:
+                    win.after(0, lambda l=line: (
+                        txt.config(state=tk.NORMAL),
+                        txt.insert(tk.END, l),
+                        txt.see(tk.END),
+                        txt.config(state=tk.DISABLED)))
+            except Exception:
+                pass
+        threading.Thread(target=_tail, daemon=True).start()
+
+    def _stop_selected(self):
+        w = self._get_selected_worker()
+        if not w:
+            return
+        subprocess.run(["docker", "stop", w[1]], capture_output=True, timeout=15)
+        self._refresh_workers()
+
+    def _stop_all(self):
+        for item in self.workers_tree.get_children():
+            name = self.workers_tree.item(item, "values")[1]
+            subprocess.run(["docker", "stop", name], capture_output=True, timeout=15)
+        self._refresh_workers()
+
+    def _get_selected_run_dir(self):
+        sel = self.runs_tree.selection()
+        if not sel:
+            messagebox.showinfo("Select", "Select a completed run first.")
+            return None
+        return Path(sel[0])
+
+    def _view_run_diff(self):
+        d = self._get_selected_run_dir()
+        if not d:
+            return
+        patch = d / "diffs" / "full.patch"
+        if not patch.exists() or patch.stat().st_size == 0:
+            messagebox.showinfo("No Diff", "No diff for this run.")
+            return
+        DiffViewer(self.app.root, patch)
+
+    def _view_run_summary(self):
+        d = self._get_selected_run_dir()
+        if not d:
+            return
+        summary = d / "diffs" / "summary.txt"
+        if not summary.exists():
+            messagebox.showinfo("No Summary", "No summary for this run.")
+            return
+        win = tk.Toplevel(self.app.root)
+        win.title(f"Summary — {d.name}")
+        win.geometry("700x500")
+        txt = scrolledtext.ScrolledText(win, wrap=tk.WORD, font=("Courier", 11))
+        txt.pack(fill=tk.BOTH, expand=True)
+        txt.insert(tk.END, summary.read_text(errors="replace"))
+        txt.config(state=tk.DISABLED)
+
+    def _open_run_folder(self):
+        d = self._get_selected_run_dir()
+        if not d or not d.exists():
+            return
+        opener = "open" if sys.platform == "darwin" else "xdg-open"
+        subprocess.Popen([opener, str(d)])
+
+    def _delete_run(self):
+        d = self._get_selected_run_dir()
+        if not d:
+            return
+        if messagebox.askyesno("Delete Run", f"Delete {d.name} and all its files?"):
+            import shutil
+            shutil.rmtree(d, ignore_errors=True)
+            self._refresh_runs()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Diff Viewer Window
+# ═════════════════════════════════════════════════════════════════════════════
+
+class DiffViewer:
+    def __init__(self, parent, patch_path: Path, diff_tool: str = ""):
+        self.patch_path = patch_path
+        win = tk.Toplevel(parent)
+        win.title(f"Diff — {patch_path.parent.parent.name}")
+        win.geometry("920x620")
+
+        txt = scrolledtext.ScrolledText(
+            win, wrap=tk.NONE, font=("Courier", 11),
+            background="#1e1e1e", foreground="#d4d4d4")
+        txt.pack(fill=tk.BOTH, expand=True)
+
+        content = patch_path.read_text(errors="replace")
+        txt.insert(tk.END, content)
+
+        for i, line in enumerate(content.splitlines(), 1):
+            tag = None
+            if line.startswith("+") and not line.startswith("+++"):
+                tag = "added"
+            elif line.startswith("-") and not line.startswith("---"):
+                tag = "removed"
+            elif line.startswith("@@"):
+                tag = "hunk"
+            elif line.startswith("diff "):
+                tag = "header"
+            if tag:
+                txt.tag_add(tag, f"{i}.0", f"{i}.end")
+
+        txt.tag_config("added", foreground="#4ec9b0")
+        txt.tag_config("removed", foreground="#f44747")
+        txt.tag_config("hunk", foreground="#569cd6")
+        txt.tag_config("header", foreground="#c586c0", font=("Courier", 11, "bold"))
+        txt.config(state=tk.DISABLED)
+
+        bar = ttk.Frame(win, padding=4)
+        bar.pack(fill=tk.X)
+
+        def _open_ext():
+            if diff_tool:
+                subprocess.Popen([diff_tool, str(patch_path)])
+            else:
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, str(patch_path)])
+
+        ttk.Button(bar, text="Open External", command=_open_ext).pack(side=tk.LEFT)
+        ttk.Button(bar, text="Close", command=win.destroy).pack(side=tk.RIGHT)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  Main Application
+# ═════════════════════════════════════════════════════════════════════════════
+
+class ClaudeWorkerApp:
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Claude Worker")
+        self.root.geometry("860x780")
+        self.root.minsize(720, 620)
+
+        style = ttk.Style()
+        for theme in ("clam", "aqua", "alt"):
+            if theme in style.theme_names():
+                style.theme_use(theme)
+                break
+
+        main = ttk.Frame(self.root, padding=8)
+        main.pack(fill=tk.BOTH, expand=True)
+
+        # Header
+        hdr = ttk.Frame(main)
+        hdr.pack(fill=tk.X, pady=(0, 6))
+        ttk.Label(hdr, text="Claude Worker", font=("TkDefaultFont", 16, "bold")).pack(side=tk.LEFT)
+        ttk.Label(hdr, text="Run & manage Claude Code tasks in Docker", foreground="gray").pack(side=tk.LEFT, padx=(10, 0))
+
+        # Tabs
+        notebook = ttk.Notebook(main)
+        notebook.pack(fill=tk.BOTH, expand=True)
+
+        worker_frame = ttk.Frame(notebook)
+        manager_frame = ttk.Frame(notebook)
+        notebook.add(worker_frame, text="  New Task  ")
+        notebook.add(manager_frame, text="  Manager  ")
+
+        self.worker_tab = WorkerTab(worker_frame, self)
+        self.manager_tab = ManagerTab(manager_frame, self)
+
+        # Status bar
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(main, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W).pack(fill=tk.X, pady=(4, 0))
+
+    def set_status(self, text: str):
+        self.root.after(0, lambda: self.status_var.set(text))
+
+    def run(self):
+        self.root.mainloop()
+
+
+def main():
+    ClaudeWorkerApp().run()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""
+claude-manager — Monitor and manage running Claude worker instances.
+
+Lists running workers, shows their status/logs, and can stop them.
+Works on macOS and Linux. No external dependencies (uses Docker CLI).
+
+Usage:
+    ./claude-manager                   # Interactive TUI (default)
+    ./claude-manager list              # List all running workers
+    ./claude-manager status            # Show status of all workers + recent runs
+    ./claude-manager logs <name|id>    # Tail logs for a running worker
+    ./claude-manager stop <name|id>    # Stop a running worker
+    ./claude-manager stop-all          # Stop all running workers
+    ./claude-manager runs              # List completed runs with results
+    ./claude-manager diff <run-id>     # Show diff from a completed run
+    ./claude-manager clean [--days N]  # Remove output dirs older than N days
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).parent.resolve()
+OUTPUT_DIR = SCRIPT_DIR / "output"
+
+# ANSI colors
+BOLD = "\033[1m"
+BLUE = "\033[1;34m"
+GREEN = "\033[1;32m"
+YELLOW = "\033[1;33m"
+RED = "\033[1;31m"
+GRAY = "\033[0;90m"
+CYAN = "\033[1;36m"
+RESET = "\033[0m"
+
+
+def run_docker(*args, capture=True):
+    """Run a docker command, return stdout."""
+    cmd = ["docker"] + list(args)
+    try:
+        result = subprocess.run(cmd, capture_output=capture, text=True, timeout=10)
+        return result.stdout.strip() if capture else ""
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return ""
+
+
+def get_running_workers():
+    """Get all running claude-worker containers."""
+    output = run_docker(
+        "ps", "--filter", "name=claude-worker-",
+        "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.CreatedAt}}"
+    )
+    workers = []
+    if not output:
+        return workers
+    for line in output.splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 4:
+            workers.append({
+                "id": parts[0][:12],
+                "name": parts[1],
+                "status": parts[2],
+                "created": parts[3],
+            })
+    return workers
+
+
+def get_all_workers():
+    """Get all claude-worker containers (running + stopped)."""
+    output = run_docker(
+        "ps", "-a", "--filter", "name=claude-worker-",
+        "--format", "{{.ID}}\t{{.Names}}\t{{.Status}}\t{{.CreatedAt}}"
+    )
+    workers = []
+    if not output:
+        return workers
+    for line in output.splitlines():
+        parts = line.split("\t")
+        if len(parts) >= 4:
+            workers.append({
+                "id": parts[0][:12],
+                "name": parts[1],
+                "status": parts[2],
+                "created": parts[3],
+            })
+    return workers
+
+
+def get_completed_runs():
+    """Get completed run directories with their metadata."""
+    if not OUTPUT_DIR.exists():
+        return []
+    runs = []
+    for d in sorted(OUTPUT_DIR.iterdir(), reverse=True):
+        if not d.is_dir():
+            continue
+        info = {}
+        info_file = d / "run-info.json"
+        result_file = d / "run-result.json"
+        if info_file.exists():
+            try:
+                info = json.loads(info_file.read_text())
+            except (json.JSONDecodeError, OSError):
+                pass
+        result = {}
+        if result_file.exists():
+            try:
+                result = json.loads(result_file.read_text())
+            except (json.JSONDecodeError, OSError):
+                pass
+        patch = d / "diffs" / "full.patch"
+        has_diff = patch.exists() and patch.stat().st_size > 0
+        runs.append({
+            "run_id": d.name,
+            "path": str(d),
+            "info": info,
+            "result": result,
+            "has_diff": has_diff,
+        })
+    return runs
+
+
+# ── Commands ─────────────────────────────────────────────────────────────────
+
+def cmd_list():
+    """List running workers."""
+    workers = get_running_workers()
+    if not workers:
+        print(f"{YELLOW}No running claude-worker containers.{RESET}")
+        return
+    print(f"\n{BOLD}Running Claude Workers{RESET}")
+    print(f"{'ID':<14} {'Name':<35} {'Status':<25} {'Created'}")
+    print("─" * 100)
+    for w in workers:
+        print(f"{CYAN}{w['id']}{RESET}  {w['name']:<35} {GREEN}{w['status']:<25}{RESET} {GRAY}{w['created']}{RESET}")
+    print()
+
+
+def cmd_status():
+    """Show status of all workers and recent runs."""
+    # Running containers
+    running = get_running_workers()
+    print(f"\n{BOLD}=== Running Workers ({len(running)}) ==={RESET}\n")
+    if running:
+        for w in running:
+            print(f"  {CYAN}{w['id']}{RESET}  {w['name']}  {GREEN}{w['status']}{RESET}")
+    else:
+        print(f"  {GRAY}(none){RESET}")
+
+    # Recent completed runs
+    runs = get_completed_runs()[:10]
+    print(f"\n{BOLD}=== Recent Runs ({len(runs)} shown) ==={RESET}\n")
+    if runs:
+        for r in runs:
+            status = r["result"].get("status", "unknown")
+            files = r["result"].get("files_changed", "?")
+            task = r["info"].get("task", "(unknown task)")[:60]
+            branch = r["info"].get("branch_name", "?")
+            color = GREEN if status == "success" else RED if status == "error" else YELLOW
+            diff_marker = " [DIFF]" if r["has_diff"] else ""
+            print(f"  {GRAY}{r['run_id']}{RESET}  {color}{status:<8}{RESET}  "
+                  f"{files} files  {BLUE}{branch}{RESET}{diff_marker}")
+            print(f"    {GRAY}{task}{RESET}")
+    else:
+        print(f"  {GRAY}(no completed runs){RESET}")
+    print()
+
+
+def cmd_logs(name_or_id: str):
+    """Tail logs for a running worker."""
+    print(f"{BLUE}[claude-manager]{RESET} Tailing logs for: {name_or_id}")
+    print(f"{GRAY}(Ctrl+C to stop){RESET}\n")
+    try:
+        subprocess.run(["docker", "logs", "-f", "--tail", "100", name_or_id])
+    except KeyboardInterrupt:
+        print()
+
+
+def cmd_stop(name_or_id: str):
+    """Stop a running worker."""
+    print(f"{BLUE}[claude-manager]{RESET} Stopping: {name_or_id}")
+    run_docker("stop", name_or_id, capture=False)
+    print(f"{GREEN}Stopped.{RESET}")
+
+
+def cmd_stop_all():
+    """Stop all running workers."""
+    workers = get_running_workers()
+    if not workers:
+        print(f"{YELLOW}No running workers to stop.{RESET}")
+        return
+    print(f"{BLUE}[claude-manager]{RESET} Stopping {len(workers)} worker(s)...")
+    for w in workers:
+        print(f"  Stopping {w['name']}...")
+        run_docker("stop", w["name"], capture=False)
+    print(f"{GREEN}All workers stopped.{RESET}")
+
+
+def cmd_runs():
+    """List completed runs."""
+    runs = get_completed_runs()
+    if not runs:
+        print(f"{YELLOW}No completed runs found.{RESET}")
+        return
+    print(f"\n{BOLD}Completed Runs{RESET}\n")
+    print(f"{'Run ID':<28} {'Status':<10} {'Files':<8} {'Branch':<30} {'Diff?'}")
+    print("─" * 100)
+    for r in runs:
+        status = r["result"].get("status", "?")
+        files = str(r["result"].get("files_changed", "?"))
+        branch = r["info"].get("branch_name", "?")[:30]
+        diff = "yes" if r["has_diff"] else "no"
+        color = GREEN if status == "success" else RED if status == "error" else GRAY
+        print(f"  {r['run_id']:<26} {color}{status:<10}{RESET} {files:<8} {BLUE}{branch:<30}{RESET} {diff}")
+    print()
+
+
+def cmd_diff(run_id: str):
+    """Show diff from a completed run."""
+    # Find the run directory
+    target = None
+    if OUTPUT_DIR.exists():
+        for d in OUTPUT_DIR.iterdir():
+            if d.name == run_id or d.name.startswith(run_id):
+                target = d
+                break
+    if not target:
+        print(f"{RED}Run '{run_id}' not found.{RESET}")
+        return
+
+    patch = target / "diffs" / "full.patch"
+    if not patch.exists() or patch.stat().st_size == 0:
+        print(f"{YELLOW}No diff available for run '{run_id}'.{RESET}")
+        # Show summary if available
+        summary = target / "diffs" / "summary.txt"
+        if summary.exists():
+            print(summary.read_text())
+        return
+
+    # Use less or cat
+    if sys.stdout.isatty() and shutil.which("less"):
+        subprocess.run(["less", "-R", str(patch)])
+    else:
+        print(patch.read_text())
+
+
+def cmd_clean(days: int = 7):
+    """Remove output directories older than N days."""
+    if not OUTPUT_DIR.exists():
+        print(f"{YELLOW}No output directory found.{RESET}")
+        return
+    cutoff = datetime.now() - timedelta(days=days)
+    removed = 0
+    for d in OUTPUT_DIR.iterdir():
+        if not d.is_dir():
+            continue
+        # Parse date from directory name (format: YYYYMMDD-HHMMSS-PID)
+        try:
+            date_str = d.name[:15]  # YYYYMMDD-HHMMSS
+            dir_date = datetime.strptime(date_str, "%Y%m%d-%H%M%S")
+            if dir_date < cutoff:
+                shutil.rmtree(d)
+                removed += 1
+                print(f"  Removed: {d.name}")
+        except (ValueError, OSError):
+            continue
+    if removed:
+        print(f"\n{GREEN}Removed {removed} run(s) older than {days} days.{RESET}")
+    else:
+        print(f"{GRAY}No runs older than {days} days to remove.{RESET}")
+
+
+def cmd_interactive():
+    """Interactive TUI for managing workers."""
+    while True:
+        print(f"\n{BOLD}╔══════════════════════════════════════╗{RESET}")
+        print(f"{BOLD}║       Claude Worker Manager          ║{RESET}")
+        print(f"{BOLD}╚══════════════════════════════════════╝{RESET}")
+
+        running = get_running_workers()
+        runs = get_completed_runs()[:5]
+
+        print(f"\n  {BOLD}Running:{RESET} {len(running)} worker(s)")
+        for w in running:
+            print(f"    {CYAN}{w['id']}{RESET}  {w['name']}  {GREEN}{w['status']}{RESET}")
+
+        print(f"\n  {BOLD}Recent runs:{RESET} {len(runs)} shown")
+        for i, r in enumerate(runs):
+            status = r["result"].get("status", "?")
+            task = r["info"].get("task", "?")[:50]
+            color = GREEN if status == "success" else RED if status == "error" else GRAY
+            print(f"    {GRAY}{i+1}. {r['run_id']}{RESET}  {color}{status}{RESET}  {task}")
+
+        print(f"""
+  {BOLD}Commands:{RESET}
+    {CYAN}s{RESET}  Status overview        {CYAN}l{RESET}  List running workers
+    {CYAN}r{RESET}  List completed runs     {CYAN}d{RESET}  View diff for a run
+    {CYAN}t{RESET}  Tail logs (running)     {CYAN}k{RESET}  Stop a worker
+    {CYAN}K{RESET}  Stop ALL workers        {CYAN}c{RESET}  Clean old runs
+    {CYAN}q{RESET}  Quit
+""")
+        try:
+            choice = input(f"  {BLUE}>{RESET} ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+
+        if choice == "q":
+            break
+        elif choice == "s":
+            cmd_status()
+        elif choice == "l":
+            cmd_list()
+        elif choice == "r":
+            cmd_runs()
+        elif choice == "d":
+            run_id = input(f"  Run ID (or number from list): ").strip()
+            # Allow selecting by number from the recent runs list
+            if run_id.isdigit() and 1 <= int(run_id) <= len(runs):
+                run_id = runs[int(run_id) - 1]["run_id"]
+            cmd_diff(run_id)
+        elif choice == "t":
+            if not running:
+                print(f"  {YELLOW}No running workers.{RESET}")
+                continue
+            if len(running) == 1:
+                cmd_logs(running[0]["name"])
+            else:
+                name = input(f"  Container name or ID: ").strip()
+                cmd_logs(name)
+        elif choice == "k":
+            if not running:
+                print(f"  {YELLOW}No running workers.{RESET}")
+                continue
+            if len(running) == 1:
+                cmd_stop(running[0]["name"])
+            else:
+                name = input(f"  Container name or ID: ").strip()
+                cmd_stop(name)
+        elif choice == "K":
+            cmd_stop_all()
+        elif choice == "c":
+            days = input(f"  Remove runs older than N days [7]: ").strip()
+            cmd_clean(int(days) if days.isdigit() else 7)
+
+        input(f"\n  {GRAY}Press Enter to continue...{RESET}")
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    if len(sys.argv) < 2:
+        cmd_interactive()
+        return
+
+    cmd = sys.argv[1]
+
+    if cmd in ("list", "ls"):
+        cmd_list()
+    elif cmd in ("status", "st"):
+        cmd_status()
+    elif cmd == "logs":
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: claude-manager logs <container-name|id>{RESET}")
+            sys.exit(1)
+        cmd_logs(sys.argv[2])
+    elif cmd == "stop":
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: claude-manager stop <container-name|id>{RESET}")
+            sys.exit(1)
+        cmd_stop(sys.argv[2])
+    elif cmd in ("stop-all", "stopall"):
+        cmd_stop_all()
+    elif cmd == "runs":
+        cmd_runs()
+    elif cmd == "diff":
+        if len(sys.argv) < 3:
+            print(f"{RED}Usage: claude-manager diff <run-id>{RESET}")
+            sys.exit(1)
+        cmd_diff(sys.argv[2])
+    elif cmd == "clean":
+        days = 7
+        if "--days" in sys.argv:
+            idx = sys.argv.index("--days")
+            if idx + 1 < len(sys.argv):
+                days = int(sys.argv[idx + 1])
+        cmd_clean(days)
+    elif cmd in ("-h", "--help", "help"):
+        print(__doc__)
+    else:
+        print(f"{RED}Unknown command: {cmd}{RESET}")
+        print(__doc__)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,48 +1,57 @@
 # claude-worker
 
-Run Claude Code tasks inside an isolated Docker container. Clone any git repo,
-give Claude a task, and get back a clean branch with diffs ready for review.
+Run Claude Code tasks inside isolated Docker containers. Clone any git repo
+(or use a local one), give Claude a task, and get back a clean branch with
+diffs ready for review. Includes a CLI, a GUI, and a manager for monitoring
+multiple workers.
 
 Works on **macOS** and **Linux**.
 
 ## How it works
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Host machine                                           │
-│                                                         │
-│  $ ./claude-worker --repo <url> --task "do something"   │
-│       │                                                 │
-│       ▼                                                 │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │  Docker container                                │   │
-│  │                                                  │   │
-│  │  1. Clone repo                                   │   │
-│  │  2. Create feature branch                        │   │
-│  │  3. Run Claude Code (auto-accept or interactive) │   │
-│  │  4. Commit changes                               │   │
-│  │  5. Save diffs to mounted volume                 │   │
-│  │                                                  │   │
-│  └──────────────────────────────────────────────────┘   │
-│       │                                                 │
-│       ▼                                                 │
-│  output/<run-id>/                                       │
-│    ├── diffs/                                           │
-│    │   ├── summary.txt        ← human-readable overview │
-│    │   ├── full.patch         ← complete unified diff   │
-│    │   ├── stat.txt           ← diffstat                │
-│    │   └── per-file/          ← one .patch per file     │
-│    ├── logs/                                            │
-│    │   ├── worker.log         ← full session output     │
-│    │   └── claude-output.log  ← Claude Code output      │
-│    ├── run-info.json          ← input metadata          │
-│    └── run-result.json        ← result metadata         │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Host machine                                                │
+│                                                              │
+│  $ ./claude-worker --repo <url> --task "do something"        │
+│  $ ./claude-worker --local-repo ~/myapp --task "add tests"   │
+│       │                                                      │
+│       ▼                                                      │
+│  ┌───────────────────────────────────────────────────────┐   │
+│  │  Docker container (isolated)                          │   │
+│  │                                                       │   │
+│  │  1. Clone repo (or copy local repo, read-only mount)  │   │
+│  │  2. Create feature branch                             │   │
+│  │  3. Run Claude Code (auto-accept or interactive)      │   │
+│  │  4. Commit changes                                    │   │
+│  │  5. Save diffs + git bundle to mounted volume         │   │
+│  │                                                       │   │
+│  └───────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│  Review prompt: [a]ccept / [r]eject / [v]iew / [d]iff tool   │
+│                 [p]ush to remote / [t]ransfer to local repo   │
+│       │                                                      │
+│       ▼                                                      │
+│  output/<run-id>/                                            │
+│    ├── diffs/                                                │
+│    │   ├── summary.txt       ← human-readable overview       │
+│    │   ├── full.patch        ← complete unified diff         │
+│    │   ├── stat.txt          ← diffstat                      │
+│    │   └── per-file/         ← one .patch per file           │
+│    ├── logs/                                                 │
+│    │   ├── worker.log        ← full session output           │
+│    │   └── claude-output.log ← Claude Code output            │
+│    ├── repo.bundle           ← git bundle (for transfer)     │
+│    ├── run-info.json         ← input metadata                │
+│    └── run-result.json       ← result metadata               │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) installed and running
+- [Python 3](https://www.python.org/) (for the GUI and manager; Tkinter ships with Python)
 - An [Anthropic API key](https://console.anthropic.com/)
 
 ## Quick start
@@ -51,29 +60,34 @@ Works on **macOS** and **Linux**.
 # 1. Set your API key
 export ANTHROPIC_API_KEY="sk-ant-..."
 
-# 2. Make the script executable
-chmod +x claude-worker
+# 2. Make scripts executable
+chmod +x claude-worker claude-worker-gui claude-manager
 
-# 3. Run a task
+# 3. Run a task (CLI)
 ./claude-worker \
     --repo https://github.com/user/myapp.git \
     --task "Add unit tests for the auth module"
+
+# 4. Or use the GUI
+./claude-worker-gui
 ```
 
-The first run builds the Docker image (cached afterwards). When it finishes,
-check the output directory for diffs.
+The first run builds the Docker image (cached afterwards). When it finishes
+you get a review prompt with accept/reject options.
 
-## Usage
+## CLI Usage
 
 ```
 ./claude-worker --repo <url> --task <prompt> [OPTIONS]
+./claude-worker --local-repo <path> --task <prompt> [OPTIONS]
 ```
 
-### Required
+### Required (one of)
 
 | Flag | Description |
 |------|-------------|
 | `--repo <url>` | Git repository URL to clone |
+| `--local-repo <path>` | Use a local repo (mounted read-only; changes on a copy) |
 | `--task <prompt>` | Task / prompt for Claude Code |
 
 ### Options
@@ -83,10 +97,13 @@ check the output directory for diffs.
 | `--branch <name>` | Feature branch name | `claude/<slugified-task>` |
 | `--repo-branch <name>` | Branch to clone from the repo | repo default |
 | `--output <dir>` | Output directory for diffs/logs | `./output` |
-| `--image <name>` | Docker image name | `claude-worker` |
 | `--model <model>` | Claude model to use | API default |
 | `--max-turns <n>` | Max agentic turns | unlimited |
 | `--interactive` | Prompt before applying changes | off (auto-accept) |
+| `--push` | Push the branch to the remote | off |
+| `--transfer <path>` | Transfer branch into a local repo (via git bundle) | — |
+| `--diff-tool <cmd>` | Open diffs in external tool (code, meld, vimdiff, etc.) | — |
+| `--no-review` | Skip accept/reject prompt | off |
 | `--rebuild` | Force rebuild the Docker image | — |
 | `--verbose` | Detailed output | off |
 | `--dry-run` | Show command without executing | — |
@@ -99,10 +116,10 @@ check the output directory for diffs.
 
 ## Examples
 
-### Auto-accept mode (default)
+### Auto-accept (default)
 
-All changes are automatically accepted — safe because everything runs in an
-isolated container. Review the diffs afterwards.
+All changes are automatically accepted inside the container (safe — isolated).
+You review the diffs on the host after.
 
 ```bash
 ./claude-worker \
@@ -110,10 +127,56 @@ isolated container. Review the diffs afterwards.
     --task "Refactor the database connection pool to use async/await"
 ```
 
-### Interactive mode
+### Local repo
 
-Use `--interactive` to have Claude print proposed changes instead of
-auto-applying them.
+Mount a local directory instead of cloning from a URL. The repo is mounted
+read-only and copied inside the container, so your working tree is never
+modified.
+
+```bash
+./claude-worker \
+    --local-repo ~/projects/myapp \
+    --task "Add input validation to all API endpoints"
+```
+
+### Transfer branch (no credentials)
+
+Use git bundles to transfer the branch into your local repo without needing
+to push to a remote or pass credentials into the container.
+
+```bash
+./claude-worker \
+    --repo https://github.com/user/myapp.git \
+    --task "Add CI pipeline" \
+    --transfer ~/projects/myapp
+```
+
+### Review with external diff tool
+
+```bash
+# VS Code
+./claude-worker --local-repo ~/myapp --task "Fix auth bug" --diff-tool code
+
+# Meld (GUI)
+./claude-worker --local-repo ~/myapp --task "Fix auth bug" --diff-tool meld
+
+# vimdiff (terminal)
+./claude-worker --local-repo ~/myapp --task "Fix auth bug" --diff-tool vimdiff
+
+# macOS FileMerge
+./claude-worker --local-repo ~/myapp --task "Fix auth bug" --diff-tool opendiff
+```
+
+### Push to remote
+
+```bash
+./claude-worker \
+    --repo https://github.com/user/myapp.git \
+    --task "Add OpenAPI docs" \
+    --push
+```
+
+### Interactive mode
 
 ```bash
 ./claude-worker \
@@ -122,65 +185,86 @@ auto-applying them.
     --interactive
 ```
 
-### Clone a specific branch
+## GUI
+
+Launch the graphical interface:
 
 ```bash
-./claude-worker \
-    --repo https://github.com/user/myapp.git \
-    --repo-branch develop \
-    --task "Fix the flaky integration tests" \
-    --branch claude/fix-flaky-tests
+./claude-worker-gui
 ```
 
-### Choose a model
+Features:
+- **New Task tab** — fill in repo (URL or local), task, options, and run
+- **Manager tab** — see running workers, tail logs, stop them, browse completed runs, view diffs with syntax highlighting
+- Auto-detects API key from `ANTHROPIC_API_KEY` environment variable
+- Works on macOS and Linux (uses Tkinter, ships with Python)
+
+## Manager (CLI)
+
+Monitor and manage running Claude worker instances:
 
 ```bash
-./claude-worker \
-    --repo https://github.com/user/myapp.git \
-    --task "Add OpenAPI documentation to all endpoints" \
-    --model claude-sonnet-4-20250514
+# Interactive TUI
+./claude-manager
+
+# Or use subcommands
+./claude-manager list              # Running workers
+./claude-manager status            # Overview of workers + recent runs
+./claude-manager logs <name>       # Tail logs for a running worker
+./claude-manager stop <name>       # Stop a worker
+./claude-manager stop-all          # Stop all workers
+./claude-manager runs              # List completed runs
+./claude-manager diff <run-id>     # Show diff from a run
+./claude-manager clean --days 7    # Remove old output dirs
 ```
 
-## Reviewing diffs
+## Review prompt
 
-After a run, the output directory contains everything you need:
+After the worker finishes, you get an interactive prompt:
+
+```
+[a]ccept / [r]eject / [v]iew diff / [d]iff tool / [p]ush / [t]ransfer
+```
+
+| Key | Action |
+|-----|--------|
+| `a` | Accept changes (diffs saved) |
+| `r` | Reject changes (diffs still saved for later) |
+| `v` | View full diff in a pager (less) |
+| `d` | Open in external diff/merge tool |
+| `p` | Accept + push branch to remote |
+| `t` | Accept + transfer branch into a local repo |
+
+Use `--no-review` to skip this prompt (e.g. in CI or from the GUI).
+
+## Applying diffs
 
 ```bash
-# Quick summary of what changed
-cat output/<run-id>/diffs/summary.txt
-
-# Diffstat (files + lines changed)
-cat output/<run-id>/diffs/stat.txt
-
-# Full unified diff
-less output/<run-id>/diffs/full.patch
-
-# Apply the changes to your local repo
+# Apply the full patch to your local repo
 cd /path/to/your/repo
 git apply /path/to/output/<run-id>/diffs/full.patch
 
-# Or review individual files
-ls output/<run-id>/diffs/per-file/
-cat output/<run-id>/diffs/per-file/src__auth__login.ts.patch
+# Or import the entire branch (no credentials needed)
+./claude-worker ... --transfer /path/to/your/repo
+# Then:
+git checkout <branch-name>
 ```
 
-## How auto-accept works
+## Security model
 
-By default, Claude Code runs with `--dangerously-skip-permissions`, which
-auto-approves all file edits and command execution. This is safe because:
-
-1. Everything runs inside a Docker container — isolated from your host
-2. The container has no access to your files, SSH keys, or credentials
-3. No personal config is copied into the container
-4. The only output is diffs saved to a mounted volume
-
-If you prefer to review changes interactively, use `--interactive`.
+- Everything runs inside a Docker container — isolated from your host
+- The container has no access to your SSH keys, credentials, or personal config
+- Local repos are mounted **read-only** — your files are never modified
+- The only output is diffs and git bundles saved to a mounted volume
+- Auto-accept (`--dangerously-skip-permissions`) only applies inside the container
 
 ## Project structure
 
 ```
 claude-worker/
-├── claude-worker          Main CLI script (run this)
+├── claude-worker          Main CLI script
+├── claude-worker-gui      GUI (Python/Tkinter)
+├── claude-manager         Instance manager (Python)
 ├── Dockerfile             Container image definition
 ├── scripts/
 │   ├── entrypoint.sh      Runs inside the container

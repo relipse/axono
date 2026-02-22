@@ -2,6 +2,7 @@
 #
 # entrypoint.sh — Runs inside the Docker container.
 # Clones the repo, creates a branch, runs Claude Code, and saves diffs.
+# Also supports PUSH_MODE for pushing a branch from a git bundle.
 #
 set -euo pipefail
 
@@ -9,8 +10,29 @@ log()   { printf "\033[1;34m[entrypoint]\033[0m %s\n" "$*"; }
 warn()  { printf "\033[1;33m[entrypoint]\033[0m %s\n" "$*" >&2; }
 error() { printf "\033[1;31m[entrypoint]\033[0m %s\n" "$*" >&2; exit 1; }
 
+# ── Push mode (re-entry to push a branch) ────────────────────────────────────
+if [[ "${PUSH_MODE:-}" == "true" ]]; then
+    [[ -z "${REPO_URL:-}" ]]    && error "REPO_URL is not set"
+    [[ -z "${BRANCH_NAME:-}" ]] && error "BRANCH_NAME is not set"
+
+    BUNDLE="/output/repo.bundle"
+    if [[ ! -f "$BUNDLE" ]]; then
+        error "No git bundle found at $BUNDLE. Cannot push."
+    fi
+
+    log "Restoring repo from bundle and pushing..."
+    git clone "$BUNDLE" /workspace/repo 2>&1
+    cd /workspace/repo
+    git config user.name "claude-worker"
+    git config user.email "claude-worker@localhost"
+    git remote set-url origin "$REPO_URL" 2>/dev/null || git remote add origin "$REPO_URL"
+    git push -u origin "$BRANCH_NAME" 2>&1
+    log "Push complete."
+    exit 0
+fi
+
 # ── Validate required env vars ───────────────────────────────────────────────
-[[ -z "${REPO_URL:-}" ]]        && error "REPO_URL is not set"
+[[ -z "${REPO_URL:-}" ]] && [[ -z "${LOCAL_REPO:-}" ]] && error "REPO_URL or LOCAL_REPO must be set"
 [[ -z "${TASK:-}" ]]            && error "TASK is not set"
 [[ -z "${BRANCH_NAME:-}" ]]     && error "BRANCH_NAME is not set"
 [[ -z "${ANTHROPIC_API_KEY:-}" ]] && error "ANTHROPIC_API_KEY is not set"
@@ -21,18 +43,23 @@ VERBOSE="${VERBOSE:-false}"
 # Ensure output subdirectories exist
 mkdir -p /output/diffs /output/logs
 
-# ── Clone the repository ────────────────────────────────────────────────────
-log "Cloning repository: ${REPO_URL}"
-
-CLONE_ARGS=(git clone --depth 100)
-if [[ -n "${REPO_BRANCH:-}" ]]; then
-    CLONE_ARGS+=(--branch "$REPO_BRANCH")
+# ── Get the repository ───────────────────────────────────────────────────────
+if [[ -n "${LOCAL_REPO:-}" ]]; then
+    # Local repo: copy from the read-only mount so we can write to it
+    log "Copying local repo from ${LOCAL_REPO}..."
+    cp -a "$LOCAL_REPO" /workspace/repo
+    cd /workspace/repo
+else
+    # Remote repo: clone
+    log "Cloning repository: ${REPO_URL}"
+    CLONE_ARGS=(git clone --depth 100)
+    if [[ -n "${REPO_BRANCH:-}" ]]; then
+        CLONE_ARGS+=(--branch "$REPO_BRANCH")
+    fi
+    CLONE_ARGS+=("$REPO_URL" /workspace/repo)
+    "${CLONE_ARGS[@]}" 2>&1 || error "Failed to clone repository"
+    cd /workspace/repo
 fi
-CLONE_ARGS+=("$REPO_URL" /workspace/repo)
-
-"${CLONE_ARGS[@]}" 2>&1 || error "Failed to clone repository"
-
-cd /workspace/repo
 
 # Configure git for commits (generic, no personal info)
 git config user.name "claude-worker"
@@ -89,6 +116,10 @@ fi
 log "Saving diffs for review..."
 save-diffs.sh "$START_SHA"
 
+# ── Create a git bundle (for transfer without credentials) ──────────────────
+log "Creating git bundle for branch transfer..."
+git bundle create /output/repo.bundle --all 2>&1 || warn "Could not create git bundle"
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 END_SHA="$(git rev-parse HEAD)"
 CHANGED_FILES="$(git diff --name-only "$START_SHA" "$END_SHA" 2>/dev/null | wc -l || echo 0)"
@@ -110,4 +141,5 @@ log "═════════════════════════
 log " Done! ${CHANGED_FILES} file(s) changed"
 log " Branch: ${BRANCH_NAME}"
 log " Diffs saved to /output/diffs/"
+log " Bundle saved to /output/repo.bundle"
 log "═══════════════════════════════════════════════════════"
