@@ -30,8 +30,8 @@ Works on **macOS** and **Linux**.
 ### Web Admin — Docker Containers
 ![Web Admin — Docker](screenshots/07-web-docker.png)
 
-### Web Admin — Access Denied (non-admin user)
-![Web Admin — Access Denied](screenshots/08-web-access-denied.png)
+### Admin Login (password-based)
+![Admin Login](screenshots/11-login-page.png)
 
 ### Marketing / Features Page (public)
 ![Marketing Page — Top](screenshots/09-marketing-page.png)
@@ -238,8 +238,7 @@ What it installs (only if not already present):
 - Git, curl, unzip
 
 It also detects Apache or Nginx and creates a virtual host config
-automatically. After it finishes, follow the on-screen steps to create
-a user and grant admin access.
+automatically. A random admin password is generated and shown at the end.
 
 ### Manual setup (any Linux / macOS)
 
@@ -247,11 +246,15 @@ a user and grant admin access.
 # 1. Run the setup script (installs Laravel deps, configures DB, etc.)
 ./claude-worker/setup-server.sh
 
-# 2. Start the Laravel server
+# 2. Set an admin password
+php artisan claude-worker:password my-secret-password
+
+# 3. Start the server
 php artisan serve --host=0.0.0.0 --port=8000
 
-# 3. Open in your browser
-# http://your-server:8000/claude-worker
+# 4. Open in your browser
+# http://your-server:8000/claude-worker/features
+# Login at: http://your-server:8000/claude-worker/login
 ```
 
 ### Setup on a web server (Nginx)

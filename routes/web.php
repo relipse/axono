@@ -25,9 +25,29 @@ Route::get('/', function () {
 // Subscription plans (viewable without login)
 Route::get('/plans', [SubscriptionController::class, 'plans'])->name('subscription.plans');
 
-// Claude Worker — public marketing page
+// ── Claude Worker (standalone — no PostFlow auth) ────────────────────────────
 Route::get('/claude-worker/features', [ClaudeWorkerController::class, 'marketing'])->name('claude-worker.marketing');
 Route::get('/claude-worker/screenshots/{name}', [ClaudeWorkerController::class, 'screenshot'])->name('claude-worker.screenshot');
+Route::get('/claude-worker/login', [ClaudeWorkerController::class, 'showLogin'])->name('claude-worker.login');
+Route::post('/claude-worker/login', [ClaudeWorkerController::class, 'login']);
+Route::post('/claude-worker/logout', [ClaudeWorkerController::class, 'logout'])->name('claude-worker.logout');
+
+Route::prefix('claude-worker')->middleware('claude-worker-admin')->group(function () {
+    Route::get('/', [ClaudeWorkerController::class, 'index'])->name('claude-worker.index');
+    Route::post('/launch', [ClaudeWorkerController::class, 'launch'])->name('claude-worker.launch');
+    Route::get('/tasks', [ClaudeWorkerController::class, 'tasks'])->name('claude-worker.tasks');
+    Route::get('/tasks/{taskId}/logs', [ClaudeWorkerController::class, 'taskLogs'])->name('claude-worker.task-logs');
+    Route::post('/tasks/{taskId}/stop', [ClaudeWorkerController::class, 'stopTask'])->name('claude-worker.task-stop');
+    Route::get('/runs', [ClaudeWorkerController::class, 'runs'])->name('claude-worker.runs');
+    Route::get('/runs/{runId}/diff', [ClaudeWorkerController::class, 'runDiff'])->name('claude-worker.run-diff');
+    Route::get('/runs/{runId}/summary', [ClaudeWorkerController::class, 'runSummary'])->name('claude-worker.run-summary');
+    Route::get('/runs/{runId}/logs', [ClaudeWorkerController::class, 'runLogs'])->name('claude-worker.run-logs');
+    Route::delete('/runs/{runId}', [ClaudeWorkerController::class, 'deleteRun'])->name('claude-worker.run-delete');
+    Route::get('/docker/workers', [ClaudeWorkerController::class, 'dockerWorkers'])->name('claude-worker.docker.workers');
+    Route::get('/docker/logs/{name}', [ClaudeWorkerController::class, 'dockerLogs'])->name('claude-worker.docker.logs');
+    Route::post('/docker/stop/{name}', [ClaudeWorkerController::class, 'dockerStop'])->name('claude-worker.docker.stop');
+    Route::post('/docker/stop-all', [ClaudeWorkerController::class, 'dockerStopAll'])->name('claude-worker.docker.stop-all');
+});
 
 // Guest routes
 Route::middleware('guest')->group(function () {
@@ -51,24 +71,6 @@ Route::middleware('auth')->group(function () {
     // OAuth routes (outside subscription middleware — connecting is always allowed)
     Route::get('/auth/{platform}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
     Route::get('/auth/{platform}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
-
-    // Claude Worker Admin (restricted to authorized admins)
-    Route::prefix('claude-worker')->middleware('claude-worker-admin')->group(function () {
-        Route::get('/', [ClaudeWorkerController::class, 'index'])->name('claude-worker.index');
-        Route::post('/launch', [ClaudeWorkerController::class, 'launch'])->name('claude-worker.launch');
-        Route::get('/tasks', [ClaudeWorkerController::class, 'tasks'])->name('claude-worker.tasks');
-        Route::get('/tasks/{taskId}/logs', [ClaudeWorkerController::class, 'taskLogs'])->name('claude-worker.task-logs');
-        Route::post('/tasks/{taskId}/stop', [ClaudeWorkerController::class, 'stopTask'])->name('claude-worker.task-stop');
-        Route::get('/runs', [ClaudeWorkerController::class, 'runs'])->name('claude-worker.runs');
-        Route::get('/runs/{runId}/diff', [ClaudeWorkerController::class, 'runDiff'])->name('claude-worker.run-diff');
-        Route::get('/runs/{runId}/summary', [ClaudeWorkerController::class, 'runSummary'])->name('claude-worker.run-summary');
-        Route::get('/runs/{runId}/logs', [ClaudeWorkerController::class, 'runLogs'])->name('claude-worker.run-logs');
-        Route::delete('/runs/{runId}', [ClaudeWorkerController::class, 'deleteRun'])->name('claude-worker.run-delete');
-        Route::get('/docker/workers', [ClaudeWorkerController::class, 'dockerWorkers'])->name('claude-worker.docker.workers');
-        Route::get('/docker/logs/{name}', [ClaudeWorkerController::class, 'dockerLogs'])->name('claude-worker.docker.logs');
-        Route::post('/docker/stop/{name}', [ClaudeWorkerController::class, 'dockerStop'])->name('claude-worker.docker.stop');
-        Route::post('/docker/stop-all', [ClaudeWorkerController::class, 'dockerStopAll'])->name('claude-worker.docker.stop-all');
-    });
 
     // Routes requiring active subscription
     Route::middleware('subscription')->group(function () {

@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'Claude Worker — Automated Code Tasks')
+@extends('layouts.claude-worker')
+@section('title', 'Automated Code Tasks')
 
 @section('content')
 {{-- Hero ──────────────────────────────────────────────────────────────── --}}
@@ -11,16 +11,12 @@
         and push branches — all from a single web admin panel.
     </p>
     <div class="pf-hero-actions">
-        @auth
-            @if(auth()->user()->isClaudeWorkerAdmin())
-                <a href="{{ route('claude-worker.index') }}" class="pf-btn pf-btn-primary pf-btn-xl">Open Admin Panel</a>
-            @else
-                <a href="{{ route('dashboard') }}" class="pf-btn pf-btn-primary pf-btn-xl">Go to Dashboard</a>
-            @endif
+        @if(session('cw_admin'))
+            <a href="{{ route('claude-worker.index') }}" class="pf-btn pf-btn-primary pf-btn-xl">Open Admin Panel</a>
         @else
-            <a href="{{ route('register') }}" class="pf-btn pf-btn-primary pf-btn-xl">Get Started</a>
+            <a href="{{ route('claude-worker.login') }}" class="pf-btn pf-btn-primary pf-btn-xl">Admin Login</a>
             <a href="#screenshots" class="pf-btn pf-btn-secondary pf-btn-xl">See It In Action</a>
-        @endauth
+        @endif
     </div>
 </div>
 
@@ -232,13 +228,11 @@ php artisan serve --host=0.0.0.0 --port=8000</code></pre>
     <h2>Ready to automate your coding tasks?</h2>
     <p>Set up Claude Worker on your server and start shipping code faster.</p>
     <div class="pf-hero-actions">
-        @auth
-            @if(auth()->user()->isClaudeWorkerAdmin())
-                <a href="{{ route('claude-worker.index') }}" class="pf-btn pf-btn-primary pf-btn-xl">Open Admin Panel</a>
-            @endif
+        @if(session('cw_admin'))
+            <a href="{{ route('claude-worker.index') }}" class="pf-btn pf-btn-primary pf-btn-xl">Open Admin Panel</a>
         @else
-            <a href="{{ route('register') }}" class="pf-btn pf-btn-primary pf-btn-xl">Get Started Free</a>
-        @endauth
+            <a href="{{ route('claude-worker.login') }}" class="pf-btn pf-btn-primary pf-btn-xl">Admin Login</a>
+        @endif
     </div>
 </div>
 

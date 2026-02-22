@@ -3,17 +3,14 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Claude Worker Admin Emails
+    | Claude Worker Admin Password
     |--------------------------------------------------------------------------
     |
-    | Comma-separated list of email addresses that should have access to the
-    | Claude Worker admin panel, in addition to users with the database flag.
-    | Set via the CLAUDE_WORKER_ADMIN_EMAILS environment variable.
+    | Single password to protect the Claude Worker admin panel.
+    | Set via the CLAUDE_WORKER_PASSWORD environment variable.
     |
-    | Example: CLAUDE_WORKER_ADMIN_EMAILS="admin@example.com,dev@example.com"
+    | Example: CLAUDE_WORKER_PASSWORD=my-secret-password
     |
     */
-    'admin_emails' => array_filter(
-        array_map('trim', explode(',', env('CLAUDE_WORKER_ADMIN_EMAILS', '')))
-    ),
+    'admin_password' => env('CLAUDE_WORKER_PASSWORD', ''),
 ];

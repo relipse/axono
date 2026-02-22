@@ -10,15 +10,12 @@ class ClaudeWorkerAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
-
-        if (!$user || !$user->isClaudeWorkerAdmin()) {
+        if (!$request->session()->get('cw_admin')) {
             if ($request->expectsJson()) {
-                return response()->json(['error' => 'Unauthorized. Claude Worker admin access required.'], 403);
+                return response()->json(['error' => 'Unauthorized. Admin login required.'], 403);
             }
 
-            return redirect()->route('dashboard')
-                ->with('error', 'You do not have permission to access the Claude Worker admin panel.');
+            return redirect()->route('claude-worker.login');
         }
 
         return $next($request);

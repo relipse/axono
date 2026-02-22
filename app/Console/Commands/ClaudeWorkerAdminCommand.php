@@ -2,101 +2,66 @@
 
 namespace App\Console\Commands;
 
-use App\Models\User;
 use Illuminate\Console\Command;
 
 class ClaudeWorkerAdminCommand extends Command
 {
-    protected $signature = 'claude-worker:admin
-                            {action : grant, revoke, or list}
-                            {email? : User email address (required for grant/revoke)}';
+    protected $signature = 'claude-worker:password
+                            {password? : The admin password to set (omit to show current status)}';
 
-    protected $description = 'Manage Claude Worker admin access for user accounts';
+    protected $description = 'Set or check the Claude Worker admin password';
 
     public function handle(): int
     {
-        $action = $this->argument('action');
+        $password = $this->argument('password');
 
-        return match ($action) {
-            'grant' => $this->grantAccess(),
-            'revoke' => $this->revokeAccess(),
-            'list' => $this->listAdmins(),
-            default => $this->invalidAction($action),
-        };
+        if (!$password) {
+            return $this->showStatus();
+        }
+
+        return $this->setPassword($password);
     }
 
-    protected function grantAccess(): int
+    protected function showStatus(): int
     {
-        $email = $this->argument('email');
-        if (!$email) {
-            $this->error('Email is required for grant action.');
-            return self::FAILURE;
-        }
+        $current = config('claude-worker.admin_password');
 
-        $user = User::where('email', $email)->first();
-        if (!$user) {
-            $this->error("No user found with email: {$email}");
-            return self::FAILURE;
-        }
-
-        $user->is_claude_worker_admin = true;
-        $user->save();
-
-        $this->info("Granted Claude Worker admin access to {$user->name} ({$email})");
-        return self::SUCCESS;
-    }
-
-    protected function revokeAccess(): int
-    {
-        $email = $this->argument('email');
-        if (!$email) {
-            $this->error('Email is required for revoke action.');
-            return self::FAILURE;
-        }
-
-        $user = User::where('email', $email)->first();
-        if (!$user) {
-            $this->error("No user found with email: {$email}");
-            return self::FAILURE;
-        }
-
-        $user->is_claude_worker_admin = false;
-        $user->save();
-
-        $this->info("Revoked Claude Worker admin access from {$user->name} ({$email})");
-        return self::SUCCESS;
-    }
-
-    protected function listAdmins(): int
-    {
-        $dbAdmins = User::where('is_claude_worker_admin', true)->get(['name', 'email']);
-        $envEmails = config('claude-worker.admin_emails', []);
-
-        $this->info('Database admins:');
-        if ($dbAdmins->isEmpty()) {
-            $this->line('  (none)');
+        if (empty($current)) {
+            $this->warn('No admin password configured.');
+            $this->line('');
+            $this->line('Set one in your .env file:');
+            $this->line('  CLAUDE_WORKER_PASSWORD=your-secret-password');
+            $this->line('');
+            $this->line('Or run:');
+            $this->line('  php artisan claude-worker:password your-secret-password');
         } else {
-            foreach ($dbAdmins as $user) {
-                $this->line("  {$user->name} <{$user->email}>");
-            }
-        }
-
-        $this->newLine();
-        $this->info('Environment-configured admins (CLAUDE_WORKER_ADMIN_EMAILS):');
-        if (empty($envEmails)) {
-            $this->line('  (none)');
-        } else {
-            foreach ($envEmails as $email) {
-                $this->line("  {$email}");
-            }
+            $this->info('Admin password is configured.');
+            $this->line('  Login at: ' . url('/claude-worker/login'));
         }
 
         return self::SUCCESS;
     }
 
-    protected function invalidAction(string $action): int
+    protected function setPassword(string $password): int
     {
-        $this->error("Unknown action: {$action}. Use grant, revoke, or list.");
-        return self::FAILURE;
+        $envPath = base_path('.env');
+        $contents = file_get_contents($envPath);
+
+        if (preg_match('/^CLAUDE_WORKER_PASSWORD=.*/m', $contents)) {
+            $contents = preg_replace(
+                '/^CLAUDE_WORKER_PASSWORD=.*/m',
+                'CLAUDE_WORKER_PASSWORD=' . $password,
+                $contents
+            );
+        } else {
+            $contents .= "\nCLAUDE_WORKER_PASSWORD=" . $password . "\n";
+        }
+
+        file_put_contents($envPath, $contents);
+
+        $this->info('Admin password set successfully.');
+        $this->line('  Login at: ' . url('/claude-worker/login'));
+
+        return self::SUCCESS;
     }
 }

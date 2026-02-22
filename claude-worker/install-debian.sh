@@ -336,24 +336,19 @@ printf "${GREEN}${BOLD}  Installation complete!${RESET}\n"
 printf "${GREEN}${BOLD}════════════════════════════════════════════════════════════${RESET}\n"
 echo ""
 
+# Generate a random admin password if not set
+if ! grep -q 'CLAUDE_WORKER_PASSWORD=' .env 2>/dev/null || grep -q 'CLAUDE_WORKER_PASSWORD=$' .env 2>/dev/null; then
+    CW_PASS=$(head -c 16 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)
+    echo "CLAUDE_WORKER_PASSWORD=$CW_PASS" >> .env
+    ok "Generated admin password: $CW_PASS"
+else
+    CW_PASS=$(grep 'CLAUDE_WORKER_PASSWORD=' .env | cut -d= -f2-)
+    ok "Admin password already set in .env"
+fi
+
 log "Next steps:"
 echo ""
-echo "  1. Create a user account:"
-echo ""
-echo "     cd $PROJECT_DIR"
-echo "     php artisan tinker --execute=\"\\"
-echo "       App\\\\Models\\\\User::create(["
-echo "         'name' => 'Admin',"
-echo "         'email' => 'admin@example.com',"
-echo "         'password' => bcrypt('your-password'),"
-echo "         'is_claude_worker_admin' => true,"
-echo "       ]);\""
-echo ""
-echo "  Or register at the web UI and then grant admin access:"
-echo ""
-echo "     php artisan claude-worker:admin grant admin@example.com"
-echo ""
-echo "  2. Start the server:"
+echo "  1. Start the server:"
 echo ""
 
 if [[ "$WEBSERVER" == "apache" ]]; then
@@ -370,8 +365,12 @@ fi
 echo "     cd $PROJECT_DIR"
 echo "     php artisan serve --host=0.0.0.0 --port=8000"
 echo ""
-echo "  3. Open: http://your-server:8000/claude-worker"
-echo "     (Login required + Claude Worker admin access)"
+echo "  2. Open the admin panel:"
+echo ""
+echo "     http://your-server:8000/claude-worker/features"
+echo ""
+echo "     Login with password: $CW_PASS"
+echo "     (or change it: php artisan claude-worker:password new-password)"
 echo ""
 
 if ! id -nG "$REAL_USER" | grep -qw docker; then

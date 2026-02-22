@@ -26,6 +26,41 @@ class ClaudeWorkerController extends Controller
         return $this->workerDir() . '/output';
     }
 
+    // ── Auth (simple password-based) ────────────────────────────────────────
+
+    public function showLogin()
+    {
+        if (session('cw_admin')) {
+            return redirect()->route('claude-worker.index');
+        }
+
+        return view('claude-worker.login');
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate(['password' => 'required|string']);
+
+        $configured = config('claude-worker.admin_password');
+
+        if (!$configured) {
+            return back()->withErrors(['password' => 'No admin password configured. Set CLAUDE_WORKER_PASSWORD in .env']);
+        }
+
+        if ($request->input('password') !== $configured) {
+            return back()->withErrors(['password' => 'Invalid password.']);
+        }
+
+        $request->session()->put('cw_admin', true);
+        return redirect()->route('claude-worker.index');
+    }
+
+    public function logout(Request $request)
+    {
+        $request->session()->forget('cw_admin');
+        return redirect()->route('claude-worker.marketing');
+    }
+
     // ── Main admin page ─────────────────────────────────────────────────────
 
     public function index()

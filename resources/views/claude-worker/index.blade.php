@@ -1,5 +1,5 @@
-@extends('layouts.app')
-@section('title', 'Claude Worker Admin')
+@extends('layouts.claude-worker')
+@section('title', 'Admin')
 
 @section('content')
 <div class="pf-mb-6">
