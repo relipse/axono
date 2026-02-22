@@ -18,6 +18,18 @@ Works on **macOS** and **Linux**.
 ### Diff Viewer (syntax-highlighted)
 ![Diff Viewer](screenshots/03-diff-viewer.png)
 
+### Web Admin — New Task
+![Web Admin — New Task](screenshots/04-web-new-task.png)
+
+### Web Admin — Completed Runs
+![Web Admin — Completed Runs](screenshots/05-web-completed-runs.png)
+
+### Web Admin — Live Tasks
+![Web Admin — Live Tasks](screenshots/06-web-live-tasks.png)
+
+### Web Admin — Docker Containers
+![Web Admin — Docker](screenshots/07-web-docker.png)
+
 ## How it works
 
 ```
@@ -215,10 +227,10 @@ php artisan serve --host=0.0.0.0 --port=8000
 # http://your-server:8000/claude-worker
 ```
 
-### Setup on a web server (Nginx/Apache)
+### Setup on a web server (Nginx)
 
 For production, point your web server's document root to the `public/`
-directory and configure PHP-FPM. Example Nginx config:
+directory and configure PHP-FPM.
 
 ```nginx
 server {
@@ -237,10 +249,48 @@ server {
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
     }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
 }
 ```
 
-Then set these in your `.env`:
+### Setup on Apache
+
+Laravel ships with a `public/.htaccess` that handles URL rewriting.
+Enable `mod_rewrite` and point the `DocumentRoot` to `public/`.
+
+```apache
+<VirtualHost *:80>
+    ServerName your-domain.com
+    DocumentRoot /path/to/axono/public
+
+    <Directory /path/to/axono/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # Pass Authorization header to PHP
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+</VirtualHost>
+```
+
+If you don't have access to the vhost config (shared hosting), just upload
+the project and point your domain to the `public/` folder. The included
+`.htaccess` handles everything.
+
+**Required Apache modules:**
+
+```bash
+sudo a2enmod rewrite
+sudo a2enmod headers
+sudo systemctl restart apache2
+```
+
+### Production `.env`
+
+For either Nginx or Apache, set these in your `.env`:
 
 ```
 APP_ENV=production
