@@ -59,7 +59,7 @@ fi
 
 # ── Human-readable summary ───────────────────────────────────────────────────
 {
-    echo "Claude Worker — Diff Summary"
+    echo "Tears Claude Worker — Diff Summary"
     echo "════════════════════════════════════════════════════════"
     echo ""
     echo "Base commit:   ${START_SHA}"

@@ -23,8 +23,8 @@ if [[ "${PUSH_MODE:-}" == "true" ]]; then
     log "Restoring repo from bundle and pushing..."
     git clone "$BUNDLE" /workspace/repo 2>&1
     cd /workspace/repo
-    git config user.name "claude-worker"
-    git config user.email "claude-worker@localhost"
+    git config user.name "tears-worker"
+    git config user.email "tears-worker@localhost"
     git remote set-url origin "$REPO_URL" 2>/dev/null || git remote add origin "$REPO_URL"
     git push -u origin "$BRANCH_NAME" 2>&1
     log "Push complete."
@@ -62,8 +62,8 @@ else
 fi
 
 # Configure git for commits (generic, no personal info)
-git config user.name "claude-worker"
-git config user.email "claude-worker@localhost"
+git config user.name "tears-worker"
+git config user.email "tears-worker@localhost"
 
 # ── Create feature branch ───────────────────────────────────────────────────
 log "Creating branch: ${BRANCH_NAME}"
@@ -107,7 +107,7 @@ fi
 if [[ -n "$(git status --porcelain)" ]]; then
     log "Committing changes..."
     git add -A
-    git commit -m "claude-worker: ${TASK}" --no-verify 2>&1 || true
+    git commit -m "tears-worker: ${TASK}" --no-verify 2>&1 || true
 else
     log "No file changes detected"
 fi

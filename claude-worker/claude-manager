@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-claude-manager — Monitor and manage running Claude worker instances.
+Tears Claude Manager — Monitor and manage running Tears Claude Worker instances.
 
 Lists running workers, shows their status/logs, and can stop them.
 Works on macOS and Linux. No external dependencies (uses Docker CLI).
@@ -132,9 +132,9 @@ def cmd_list():
     """List running workers."""
     workers = get_running_workers()
     if not workers:
-        print(f"{YELLOW}No running claude-worker containers.{RESET}")
+        print(f"{YELLOW}No running Tears workers.{RESET}")
         return
-    print(f"\n{BOLD}Running Claude Workers{RESET}")
+    print(f"\n{BOLD}Running Tears Workers{RESET}")
     print(f"{'ID':<14} {'Name':<35} {'Status':<25} {'Created'}")
     print("─" * 100)
     for w in workers:
@@ -280,7 +280,7 @@ def cmd_interactive():
     """Interactive TUI for managing workers."""
     while True:
         print(f"\n{BOLD}╔══════════════════════════════════════╗{RESET}")
-        print(f"{BOLD}║       Claude Worker Manager          ║{RESET}")
+        print(f"{BOLD}║     Tears Claude Worker Manager      ║{RESET}")
         print(f"{BOLD}╚══════════════════════════════════════╝{RESET}")
 
         running = get_running_workers()

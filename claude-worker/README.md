@@ -1,4 +1,4 @@
-# claude-worker
+# Tears Claude Worker
 
 Run Claude Code tasks inside isolated Docker containers. Clone any git repo
 (or use a local one), give Claude a task, and get back a clean branch with
@@ -6,6 +6,17 @@ diffs ready for review. Includes a CLI, a GUI, and a manager for monitoring
 multiple workers.
 
 Works on **macOS** and **Linux**.
+
+## Screenshots
+
+### New Task tab
+![New Task tab](screenshots/01-new-task.png)
+
+### Manager tab
+![Manager tab](screenshots/02-manager.png)
+
+### Diff Viewer (syntax-highlighted)
+![Diff Viewer](screenshots/03-diff-viewer.png)
 
 ## How it works
 
@@ -196,12 +207,13 @@ Launch the graphical interface:
 Features:
 - **New Task tab** — fill in repo (URL or local), task, options, and run
 - **Manager tab** — see running workers, tail logs, stop them, browse completed runs, view diffs with syntax highlighting
+- **Diff viewer** — built-in syntax-highlighted diff viewer with "Open External" button
 - Auto-detects API key from `ANTHROPIC_API_KEY` environment variable
 - Works on macOS and Linux (uses Tkinter, ships with Python)
 
 ## Manager (CLI)
 
-Monitor and manage running Claude worker instances:
+Monitor and manage running Tears Claude Worker instances:
 
 ```bash
 # Interactive TUI
@@ -223,7 +235,7 @@ Monitor and manage running Claude worker instances:
 After the worker finishes, you get an interactive prompt:
 
 ```
-[a]ccept / [r]eject / [v]iew diff / [d]iff tool / [p]ush / [t]ransfer
+[tears] [a]ccept / [r]eject / [v]iew diff / [d]iff tool / [p]ush / [t]ransfer
 ```
 
 | Key | Action |
@@ -269,6 +281,7 @@ claude-worker/
 ├── scripts/
 │   ├── entrypoint.sh      Runs inside the container
 │   └── save-diffs.sh      Generates diff files for review
+├── screenshots/           GUI screenshots
 ├── .gitignore
 └── README.md
 ```

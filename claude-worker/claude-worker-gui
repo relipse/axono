@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-claude-worker-gui — A graphical interface for claude-worker + manager.
+Tears Claude Worker GUI — Graphical interface for Tears Claude Worker.
 
 Uses Tkinter (ships with Python on macOS and Linux).
 No external dependencies required.
@@ -600,7 +600,7 @@ class DiffViewer:
 class ClaudeWorkerApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Claude Worker")
+        self.root.title("Tears Claude Worker")
         self.root.geometry("860x780")
         self.root.minsize(720, 620)
 
@@ -616,7 +616,7 @@ class ClaudeWorkerApp:
         # Header
         hdr = ttk.Frame(main)
         hdr.pack(fill=tk.X, pady=(0, 6))
-        ttk.Label(hdr, text="Claude Worker", font=("TkDefaultFont", 16, "bold")).pack(side=tk.LEFT)
+        ttk.Label(hdr, text="Tears Claude Worker", font=("TkDefaultFont", 16, "bold")).pack(side=tk.LEFT)
         ttk.Label(hdr, text="Run & manage Claude Code tasks in Docker", foreground="gray").pack(side=tk.LEFT, padx=(10, 0))
 
         # Tabs
