@@ -30,6 +30,9 @@ Works on **macOS** and **Linux**.
 ### Web Admin — Docker Containers
 ![Web Admin — Docker](screenshots/07-web-docker.png)
 
+### Web Admin — Access Denied (non-admin user)
+![Web Admin — Access Denied](screenshots/08-web-access-denied.png)
+
 ## How it works
 
 ```
@@ -214,10 +217,30 @@ to push to a remote or pass credentials into the container.
 A full web-based admin panel built into the Laravel application. Access it
 from any browser — perfect for running on a remote server.
 
-### Quick setup
+### One-command install (Debian / Ubuntu)
+
+The installer handles **everything** — PHP, Composer, Docker CE, SQLite,
+file permissions, database migrations, and web server config:
 
 ```bash
-# 1. Run the setup script (installs deps, configures DB, etc.)
+sudo ./claude-worker/install-debian.sh
+```
+
+What it installs (only if not already present):
+- PHP 8.2+ with all required extensions
+- Composer (latest)
+- Docker CE + adds your user to the `docker` group
+- SQLite
+- Git, curl, unzip
+
+It also detects Apache or Nginx and creates a virtual host config
+automatically. After it finishes, follow the on-screen steps to create
+a user and grant admin access.
+
+### Manual setup (any Linux / macOS)
+
+```bash
+# 1. Run the setup script (installs Laravel deps, configures DB, etc.)
 ./claude-worker/setup-server.sh
 
 # 2. Start the Laravel server
@@ -443,7 +466,8 @@ claude-worker/
 ├── claude-worker          Main CLI script (bash)
 ├── claude-worker-gui      Desktop GUI (Python/Tkinter)
 ├── claude-manager         Instance manager (Python)
-├── setup-server.sh        Web server setup script
+├── install-debian.sh      One-command Debian/Ubuntu installer
+├── setup-server.sh        Manual setup script (any platform)
 ├── Dockerfile             Container image definition
 ├── scripts/
 │   ├── entrypoint.sh      Runs inside the container
