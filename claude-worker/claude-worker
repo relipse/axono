@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+#
+# claude-worker — Spawn a Claude Code worker inside a Docker container.
+#
+# Usage:
+#   ./claude-worker --repo <git-url> --task <prompt> [options]
+#
+# Works on macOS and Linux.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="0.1.0"
+
+# ── Defaults ─────────────────────────────────────────────────────────────────
+REPO_URL=""
+TASK=""
+BRANCH_NAME=""
+OUTPUT_DIR="${SCRIPT_DIR}/output"
+IMAGE_NAME="claude-worker"
+CONTAINER_NAME=""
+AUTO_ACCEPT="true"
+MODEL=""
+REPO_BRANCH=""
+MAX_TURNS=""
+VERBOSE="false"
+DRY_RUN="false"
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+usage() {
+    cat <<'EOF'
+claude-worker — Run Claude Code tasks in an isolated Docker container
+
+USAGE
+    ./claude-worker --repo <url> --task <prompt> [OPTIONS]
+
+REQUIRED
+    --repo    <url>       Git repository URL to clone
+    --task    <prompt>    Task / prompt to give Claude Code
+
+OPTIONS
+    --branch  <name>      Name for the new feature branch
+                          (default: claude/<slugified-task>)
+    --repo-branch <name>  Specific branch to clone from the repo
+                          (default: repo default)
+    --output  <dir>       Directory to save diffs and logs
+                          (default: ./output)
+    --image   <name>      Docker image name (default: claude-worker)
+    --name    <name>      Container name (default: auto-generated)
+    --model   <model>     Claude model to use
+    --max-turns <n>       Maximum agentic turns
+    --interactive         Prompt user before applying changes
+                          (disables auto-accept)
+    --no-auto-accept      Alias for --interactive
+    --verbose             Show detailed output
+    --dry-run             Show what would be run without executing
+    --rebuild             Force rebuild the Docker image
+    --version             Print version
+    -h, --help            Show this help
+
+ENVIRONMENT
+    ANTHROPIC_API_KEY     Required. Your Anthropic API key.
+
+EXAMPLES
+    # Basic usage — auto-accepts all changes in the container
+    ./claude-worker \
+        --repo https://github.com/user/myapp.git \
+        --task "Add unit tests for the auth module"
+
+    # Custom branch and output directory
+    ./claude-worker \
+        --repo https://github.com/user/myapp.git \
+        --task "Fix the memory leak in connection pooling" \
+        --branch claude/fix-connection-pool \
+        --output ./review
+
+    # Interactive mode (view changes before applying)
+    ./claude-worker \
+        --repo https://github.com/user/myapp.git \
+        --task "Refactor the database layer" \
+        --interactive
+
+OUTPUT
+    After the worker finishes, diffs are saved to:
+      output/<run-id>/diffs/summary.txt     Quick overview
+      output/<run-id>/diffs/full.patch      Full unified diff
+      output/<run-id>/diffs/stat.txt        Diffstat
+      output/<run-id>/diffs/per-file/       One patch per file
+      output/<run-id>/logs/worker.log       Full session log
+      output/<run-id>/run-info.json         Run metadata
+      output/<run-id>/run-result.json       Result metadata
+EOF
+}
+
+log()   { printf "\033[1;34m[claude-worker]\033[0m %s\n" "$*"; }
+warn()  { printf "\033[1;33m[claude-worker]\033[0m %s\n" "$*" >&2; }
+error() { printf "\033[1;31m[claude-worker]\033[0m %s\n" "$*" >&2; exit 1; }
+debug() { [[ "$VERBOSE" == "true" ]] && printf "\033[0;90m[debug]\033[0m %s\n" "$*"; }
+
+slugify() {
+    echo "$1" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-' | sed 's/^-//;s/-$//' | cut -c1-50
+}
+
+check_dependencies() {
+    if ! command -v docker &>/dev/null; then
+        error "Docker is not installed. Install it from: https://docs.docker.com/get-docker/"
+    fi
+    if ! docker info &>/dev/null 2>&1; then
+        error "Docker daemon is not running. Please start Docker."
+    fi
+}
+
+build_image() {
+    local image="$1"
+    local force="${2:-false}"
+
+    if [[ "$force" == "false" ]] && docker image inspect "$image" &>/dev/null 2>&1; then
+        debug "Image '$image' already exists, skipping build (use --rebuild to force)"
+        return 0
+    fi
+
+    log "Building Docker image '$image'..."
+    docker build -t "$image" "$SCRIPT_DIR" || error "Docker build failed"
+    log "Image built successfully"
+}
+
+# ── Parse arguments ──────────────────────────────────────────────────────────
+REBUILD="false"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo)         REPO_URL="$2";       shift 2 ;;
+        --task)         TASK="$2";           shift 2 ;;
+        --branch)       BRANCH_NAME="$2";    shift 2 ;;
+        --repo-branch)  REPO_BRANCH="$2";    shift 2 ;;
+        --output)       OUTPUT_DIR="$2";     shift 2 ;;
+        --image)        IMAGE_NAME="$2";     shift 2 ;;
+        --name)         CONTAINER_NAME="$2"; shift 2 ;;
+        --model)        MODEL="$2";          shift 2 ;;
+        --max-turns)    MAX_TURNS="$2";      shift 2 ;;
+        --interactive|--no-auto-accept) AUTO_ACCEPT="false"; shift ;;
+        --verbose)      VERBOSE="true";      shift ;;
+        --dry-run)      DRY_RUN="true";      shift ;;
+        --rebuild)      REBUILD="true";      shift ;;
+        --version)      echo "claude-worker $VERSION"; exit 0 ;;
+        -h|--help)      usage; exit 0 ;;
+        *)              error "Unknown option: $1" ;;
+    esac
+done
+
+# ── Validate ─────────────────────────────────────────────────────────────────
+[[ -z "$REPO_URL" ]] && error "Missing required option: --repo <url>"
+[[ -z "$TASK" ]]     && error "Missing required option: --task <prompt>"
+
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+    error "ANTHROPIC_API_KEY environment variable is not set"
+fi
+
+# Derive branch name if not given
+if [[ -z "$BRANCH_NAME" ]]; then
+    BRANCH_NAME="claude/$(slugify "$TASK")"
+fi
+
+# Derive container name if not given
+if [[ -z "$CONTAINER_NAME" ]]; then
+    CONTAINER_NAME="claude-worker-$(date +%s)-$$"
+fi
+
+# Create run-specific output directory
+RUN_ID="$(date +%Y%m%d-%H%M%S)-$$"
+RUN_OUTPUT_DIR="${OUTPUT_DIR}/${RUN_ID}"
+mkdir -p "${RUN_OUTPUT_DIR}/diffs" "${RUN_OUTPUT_DIR}/logs"
+
+# ── Preflight ────────────────────────────────────────────────────────────────
+check_dependencies
+build_image "$IMAGE_NAME" "$REBUILD"
+
+# ── Assemble docker run command ──────────────────────────────────────────────
+DOCKER_ARGS=(
+    docker run
+    --rm
+    --name "$CONTAINER_NAME"
+    -e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"
+    -e "REPO_URL=${REPO_URL}"
+    -e "TASK=${TASK}"
+    -e "BRANCH_NAME=${BRANCH_NAME}"
+    -e "AUTO_ACCEPT=${AUTO_ACCEPT}"
+    -v "${RUN_OUTPUT_DIR}:/output"
+)
+
+[[ -n "$REPO_BRANCH" ]]    && DOCKER_ARGS+=(-e "REPO_BRANCH=${REPO_BRANCH}")
+[[ -n "$MODEL" ]]          && DOCKER_ARGS+=(-e "CLAUDE_MODEL=${MODEL}")
+[[ -n "$MAX_TURNS" ]]      && DOCKER_ARGS+=(-e "MAX_TURNS=${MAX_TURNS}")
+[[ "$VERBOSE" == "true" ]] && DOCKER_ARGS+=(-e "VERBOSE=true")
+
+# Interactive mode needs a tty
+if [[ "$AUTO_ACCEPT" == "false" ]]; then
+    DOCKER_ARGS+=(-it)
+fi
+
+DOCKER_ARGS+=("$IMAGE_NAME")
+
+# ── Execute ──────────────────────────────────────────────────────────────────
+log "Starting Claude worker"
+log "  Repo:     $REPO_URL"
+log "  Task:     $TASK"
+log "  Branch:   $BRANCH_NAME"
+log "  Output:   $RUN_OUTPUT_DIR"
+log "  Mode:     $([ "$AUTO_ACCEPT" = "true" ] && echo "auto-accept" || echo "interactive")"
+[[ -n "$MODEL" ]] && log "  Model:    $MODEL"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+    log "[dry-run] Would execute:"
+    printf "  %s\n" "${DOCKER_ARGS[@]}"
+    exit 0
+fi
+
+# Save run metadata
+cat > "${RUN_OUTPUT_DIR}/run-info.json" <<INFOJSON
+{
+  "run_id": "${RUN_ID}",
+  "repo_url": "${REPO_URL}",
+  "task": $(printf '%s' "$TASK" | jq -Rs .),
+  "branch_name": "${BRANCH_NAME}",
+  "auto_accept": ${AUTO_ACCEPT},
+  "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "image": "${IMAGE_NAME}",
+  "container": "${CONTAINER_NAME}"
+}
+INFOJSON
+
+# Run the container, teeing output to a log file
+"${DOCKER_ARGS[@]}" 2>&1 | tee "${RUN_OUTPUT_DIR}/logs/worker.log" || true
+
+# ── Post-run report ──────────────────────────────────────────────────────────
+echo ""
+if [[ -f "${RUN_OUTPUT_DIR}/diffs/full.patch" ]] && [[ -s "${RUN_OUTPUT_DIR}/diffs/full.patch" ]]; then
+    DIFF_LINES=$(wc -l < "${RUN_OUTPUT_DIR}/diffs/full.patch")
+    log "═══════════════════════════════════════════════════════"
+    log " Worker finished"
+    log " Patch:   ${RUN_OUTPUT_DIR}/diffs/full.patch  (${DIFF_LINES} lines)"
+    log " Summary: ${RUN_OUTPUT_DIR}/diffs/summary.txt"
+    log " Stat:    ${RUN_OUTPUT_DIR}/diffs/stat.txt"
+    log " Log:     ${RUN_OUTPUT_DIR}/logs/worker.log"
+    log "═══════════════════════════════════════════════════════"
+    log ""
+    log "Quick review:"
+    log "  cat ${RUN_OUTPUT_DIR}/diffs/summary.txt"
+    log "  cat ${RUN_OUTPUT_DIR}/diffs/stat.txt"
+    log "  less ${RUN_OUTPUT_DIR}/diffs/full.patch"
+    log "  ls  ${RUN_OUTPUT_DIR}/diffs/per-file/"
+else
+    warn "No diffs generated. Check: ${RUN_OUTPUT_DIR}/logs/worker.log"
+fi
