@@ -306,7 +306,8 @@ APP_URL=http://your-domain.com
   highlighting, summaries, and logs
 - **Docker tab** — see running containers, view logs, stop them
 - **API key stored in browser** — never saved on the server
-- **Authentication** — protected behind Laravel auth (login required)
+- **Admin-only access** — protected by role-based middleware; only
+  authorized users can see or use the panel
 - Works from any device with a browser (phone, tablet, laptop)
 
 ### Dedicated port (alternative)
@@ -320,11 +321,44 @@ php artisan serve --host=0.0.0.0 --port=7080
 # Or with Nginx, add a second server block on a different port
 ```
 
+### Admin access control
+
+The Claude Worker panel is restricted to authorized admin users. There
+are two ways to grant access:
+
+**Option 1 — Artisan command (database flag)**
+
+```bash
+# Grant access
+php artisan claude-worker:admin grant admin@example.com
+
+# Revoke access
+php artisan claude-worker:admin revoke user@example.com
+
+# List all admins
+php artisan claude-worker:admin list
+```
+
+**Option 2 — Environment variable**
+
+Add a comma-separated list of admin emails to your `.env`:
+
+```
+CLAUDE_WORKER_ADMIN_EMAILS="admin@example.com,dev@example.com"
+```
+
+Both methods work together — a user with *either* the database flag or
+an email in the env list will have access.
+
+After running the migration (`php artisan migrate`), no users have
+admin access by default. Grant access before attempting to use the
+panel.
+
 ### Access URL
 
 Once running, the admin is at: `http://your-server:PORT/claude-worker`
 
-You must be logged in (register at `/register` first).
+You must be logged in and have Claude Worker admin access.
 
 ---
 
@@ -420,6 +454,9 @@ claude-worker/
 
 # Web Admin (integrated into the Laravel app)
 app/Http/Controllers/ClaudeWorkerController.php
+app/Http/Middleware/ClaudeWorkerAdmin.php
+app/Console/Commands/ClaudeWorkerAdminCommand.php
+config/claude-worker.php
 resources/views/claude-worker/index.blade.php
 routes/web.php              (claude-worker/* routes)
 ```

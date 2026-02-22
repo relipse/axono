@@ -29,7 +29,9 @@
                             @if(auth()->user()->subscriptionPlan()?->can_upload_files)
                                 <a href="{{ route('data-files.index') }}" class="pf-nav-link {{ request()->routeIs('data-files.*') ? 'active' : '' }}">Data Files</a>
                             @endif
-                            <a href="{{ route('claude-worker.index') }}" class="pf-nav-link {{ request()->routeIs('claude-worker.*') ? 'active' : '' }}">Claude Worker</a>
+                            @if(auth()->user()->isClaudeWorkerAdmin())
+                                <a href="{{ route('claude-worker.index') }}" class="pf-nav-link {{ request()->routeIs('claude-worker.*') ? 'active' : '' }}">Claude Worker</a>
+                            @endif
                         </div>
                     @endauth
                 </div>

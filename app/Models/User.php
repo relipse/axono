@@ -28,7 +28,27 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_claude_worker_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * Check if this user can access the Claude Worker admin panel.
+     * Access is granted if the user has the DB flag set, OR if their
+     * email is listed in the CLAUDE_WORKER_ADMIN_EMAILS env variable.
+     */
+    public function isClaudeWorkerAdmin(): bool
+    {
+        if ($this->is_claude_worker_admin) {
+            return true;
+        }
+
+        $envEmails = config('claude-worker.admin_emails', []);
+        if (!empty($envEmails) && in_array($this->email, $envEmails, true)) {
+            return true;
+        }
+
+        return false;
     }
 
     public function subscription(): HasOne

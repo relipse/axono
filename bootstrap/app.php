@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\CheckInstalled::class);
         $middleware->alias([
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
+            'claude-worker-admin' => \App\Http\Middleware\ClaudeWorkerAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

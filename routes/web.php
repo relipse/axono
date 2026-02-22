@@ -48,8 +48,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/auth/{platform}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
     Route::get('/auth/{platform}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
 
-    // Claude Worker Admin
-    Route::prefix('claude-worker')->group(function () {
+    // Claude Worker Admin (restricted to authorized admins)
+    Route::prefix('claude-worker')->middleware('claude-worker-admin')->group(function () {
         Route::get('/', [ClaudeWorkerController::class, 'index'])->name('claude-worker.index');
         Route::post('/launch', [ClaudeWorkerController::class, 'launch'])->name('claude-worker.launch');
         Route::get('/tasks', [ClaudeWorkerController::class, 'tasks'])->name('claude-worker.tasks');
