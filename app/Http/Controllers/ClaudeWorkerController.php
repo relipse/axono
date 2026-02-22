@@ -33,6 +33,51 @@ class ClaudeWorkerController extends Controller
         return view('claude-worker.index');
     }
 
+    // ── Public marketing page ────────────────────────────────────────────────
+
+    public function marketing()
+    {
+        $screenshotDir = $this->workerDir() . '/screenshots';
+        $screenshots = [];
+
+        if (is_dir($screenshotDir)) {
+            $files = glob($screenshotDir . '/*.png');
+            sort($files);
+            foreach ($files as $file) {
+                $name = basename($file, '.png');
+                $screenshots[] = [
+                    'name'  => $name,
+                    'label' => $this->screenshotLabel($name),
+                    'url'   => route('claude-worker.screenshot', ['name' => $name]),
+                ];
+            }
+        }
+
+        return view('claude-worker.marketing', compact('screenshots'));
+    }
+
+    public function screenshot(string $name)
+    {
+        $name = preg_replace('/[^a-zA-Z0-9_\-]/', '', $name);
+        $path = $this->workerDir() . '/screenshots/' . $name . '.png';
+
+        if (!file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Cache-Control' => 'public, max-age=300',
+        ]);
+    }
+
+    private function screenshotLabel(string $name): string
+    {
+        // "04-web-new-task" → "Web New Task"
+        $label = preg_replace('/^\d+-/', '', $name);
+        $label = str_replace('-', ' ', $label);
+        return ucwords($label);
+    }
+
     // ── Launch a new task ───────────────────────────────────────────────────
 
     public function launch(Request $request)

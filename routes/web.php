@@ -25,6 +25,10 @@ Route::get('/', function () {
 // Subscription plans (viewable without login)
 Route::get('/plans', [SubscriptionController::class, 'plans'])->name('subscription.plans');
 
+// Claude Worker — public marketing page
+Route::get('/claude-worker/features', [ClaudeWorkerController::class, 'marketing'])->name('claude-worker.marketing');
+Route::get('/claude-worker/screenshots/{name}', [ClaudeWorkerController::class, 'screenshot'])->name('claude-worker.screenshot');
+
 // Guest routes
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');

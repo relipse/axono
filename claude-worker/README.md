@@ -33,6 +33,10 @@ Works on **macOS** and **Linux**.
 ### Web Admin — Access Denied (non-admin user)
 ![Web Admin — Access Denied](screenshots/08-web-access-denied.png)
 
+### Marketing / Features Page (public)
+![Marketing Page — Top](screenshots/09-marketing-page.png)
+![Marketing Page — Bottom](screenshots/10-marketing-page-bottom.png)
+
 ## How it works
 
 ```
