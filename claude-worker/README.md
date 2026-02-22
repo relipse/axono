@@ -2,8 +2,8 @@
 
 Run Claude Code tasks inside isolated Docker containers. Clone any git repo
 (or use a local one), give Claude a task, and get back a clean branch with
-diffs ready for review. Includes a CLI, a GUI, and a manager for monitoring
-multiple workers.
+diffs ready for review. Includes a CLI, a GUI, a manager, and a **web admin
+panel** (Laravel) for running everything from a browser.
 
 Works on **macOS** and **Linux**.
 
@@ -63,6 +63,7 @@ Works on **macOS** and **Linux**.
 
 - [Docker](https://docs.docker.com/get-docker/) installed and running
 - [Python 3](https://www.python.org/) (for the GUI and manager; Tkinter ships with Python)
+- [PHP 8.2+](https://www.php.net/) & [Composer](https://getcomposer.org/) (for the web admin)
 - An [Anthropic API key](https://console.anthropic.com/)
 
 ## Quick start
@@ -196,6 +197,87 @@ to push to a remote or pass credentials into the container.
     --interactive
 ```
 
+## Web Admin (Laravel)
+
+A full web-based admin panel built into the Laravel application. Access it
+from any browser — perfect for running on a remote server.
+
+### Quick setup
+
+```bash
+# 1. Run the setup script (installs deps, configures DB, etc.)
+./claude-worker/setup-server.sh
+
+# 2. Start the Laravel server
+php artisan serve --host=0.0.0.0 --port=8000
+
+# 3. Open in your browser
+# http://your-server:8000/claude-worker
+```
+
+### Setup on a web server (Nginx/Apache)
+
+For production, point your web server's document root to the `public/`
+directory and configure PHP-FPM. Example Nginx config:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /path/to/axono/public;
+
+    index index.php;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+Then set these in your `.env`:
+
+```
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=http://your-domain.com
+```
+
+### Features
+
+- **New Task tab** — configure repo, task, model, options and launch
+- **Live Tasks tab** — monitor running tasks with real-time log streaming
+- **Completed Runs tab** — browse finished runs, view diffs with syntax
+  highlighting, summaries, and logs
+- **Docker tab** — see running containers, view logs, stop them
+- **API key stored in browser** — never saved on the server
+- **Authentication** — protected behind Laravel auth (login required)
+- Works from any device with a browser (phone, tablet, laptop)
+
+### Dedicated port (alternative)
+
+If you want the admin on a specific port separate from your main app:
+
+```bash
+# Run on port 7080 (or any port you choose)
+php artisan serve --host=0.0.0.0 --port=7080
+
+# Or with Nginx, add a second server block on a different port
+```
+
+### Access URL
+
+Once running, the admin is at: `http://your-server:PORT/claude-worker`
+
+You must be logged in (register at `/register` first).
+
+---
+
 ## GUI
 
 Launch the graphical interface:
@@ -274,9 +356,10 @@ git checkout <branch-name>
 
 ```
 claude-worker/
-├── claude-worker          Main CLI script
-├── claude-worker-gui      GUI (Python/Tkinter)
+├── claude-worker          Main CLI script (bash)
+├── claude-worker-gui      Desktop GUI (Python/Tkinter)
 ├── claude-manager         Instance manager (Python)
+├── setup-server.sh        Web server setup script
 ├── Dockerfile             Container image definition
 ├── scripts/
 │   ├── entrypoint.sh      Runs inside the container
@@ -284,4 +367,9 @@ claude-worker/
 ├── screenshots/           GUI screenshots
 ├── .gitignore
 └── README.md
+
+# Web Admin (integrated into the Laravel app)
+app/Http/Controllers/ClaudeWorkerController.php
+resources/views/claude-worker/index.blade.php
+routes/web.php              (claude-worker/* routes)
 ```
