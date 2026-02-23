@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CW Client">
+    <meta name="theme-color" content="#4f46e5">
+    <title>Claude Worker Client</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --text-muted: #64748b;
+            --indigo: #6366f1;
+            --indigo-dim: #4f46e5;
+            --green: #22c55e;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --blue: #3b82f6;
+            --cyan: #06b6d4;
+            --radius: 10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .header-brand svg { width: 28px; height: 28px; }
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--text-dim); }
+        .tab.active { color: var(--indigo); border-bottom-color: var(--indigo); }
+        .tab-icon { display: block; font-size: 18px; margin-bottom: 2px; }
+
+        /* Panels */
+        .panel { display: none; padding: 16px; }
+        .panel.active { display: block; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input[type="text"], input[type="password"], input[type="url"], input[type="number"],
+        textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--indigo);
+        }
+        textarea { resize: vertical; min-height: 100px; }
+        select { cursor: pointer; }
+
+        .input-row { display: flex; gap: 8px; align-items: center; }
+        .input-row input { flex: 1; }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        .toggle-label { font-size: 14px; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary { background: var(--indigo); color: #fff; }
+        .btn-primary:hover { background: var(--indigo-dim); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background: var(--red); color: #fff; }
+        .btn-danger:hover { opacity: 0.85; }
+        .btn-outline {
+            background: transparent;
+            color: var(--indigo);
+            border: 1px solid var(--indigo);
+        }
+        .btn-outline:hover { background: var(--indigo); color: #fff; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+        .btn-full { width: 100%; justify-content: center; }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .badge-running { background: rgba(59,130,246,0.15); color: var(--blue); }
+        .badge-running .badge-dot { background: var(--blue); }
+        .badge-success { background: rgba(34,197,94,0.15); color: var(--green); }
+        .badge-success .badge-dot { background: var(--green); }
+        .badge-error { background: rgba(239,68,68,0.15); color: var(--red); }
+        .badge-error .badge-dot { background: var(--red); }
+        .badge-stopped { background: rgba(245,158,11,0.15); color: var(--orange); }
+        .badge-stopped .badge-dot { background: var(--orange); }
+        .badge-default { background: rgba(100,116,139,0.15); color: var(--text-muted); }
+        .badge-default .badge-dot { background: var(--text-muted); }
+
+        /* Actions row */
+        .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+        /* Log/Diff viewer */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .diff-add { color: var(--green); }
+        .diff-del { color: var(--red); }
+        .diff-hunk { color: #818cf8; }
+        .diff-file { color: var(--cyan); }
+        .diff-meta { color: var(--blue); }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            animation: fadeIn 0.15s;
+        }
+        .modal-overlay.active { display: block; }
+        .modal {
+            position: fixed;
+            top: 0; right: 0; bottom: 0;
+            width: 100%;
+            max-width: 800px;
+            background: var(--bg);
+            z-index: 201;
+            display: flex;
+            flex-direction: column;
+            animation: slideIn 0.2s;
+        }
+        .modal-header {
+            padding: 14px 16px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-weight: 700; font-size: 16px; }
+        .modal-body { flex: 1; overflow: auto; padding: 16px; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-text { font-size: 14px; }
+
+        /* Voice button */
+        .mic-btn {
+            background: var(--bg-input);
+            color: var(--indigo);
+        }
+        .mic-btn.recording {
+            background: var(--red);
+            color: #fff;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Segment control */
+        .segment {
+            display: flex;
+            background: var(--bg-input);
+            border-radius: var(--radius);
+            padding: 3px;
+        }
+        .segment-btn {
+            flex: 1;
+            padding: 6px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 7px;
+            transition: all 0.2s;
+        }
+        .segment-btn.active { background: var(--indigo); color: #fff; }
+
+        /* Alert */
+        .alert {
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alert-success { background: rgba(34,197,94,0.15); color: var(--green); }
+        .alert-error { background: rgba(239,68,68,0.15); color: var(--red); }
+
+        /* Loading */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--indigo);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .text-small { font-size: 12px; }
+        .text-muted { color: var(--text-muted); }
+        .text-dim { color: var(--text-dim); }
+        .mt-8 { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+        .mb-8 { margin-bottom: 8px; }
+        .gap-8 { gap: 8px; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mono { font-family: 'SF Mono', 'Fira Code', monospace; }
+
+        /* Login page */
+        .login-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 24px;
+        }
+        .login-box {
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-logo {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .login-logo svg { width: 64px; height: 64px; }
+        .login-logo h1 { font-size: 24px; margin-top: 12px; }
+        .login-logo p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+
+        /* Disclosure */
+        .disclosure-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+        .disclosure-arrow { transition: transform 0.2s; }
+        .disclosure-arrow.open { transform: rotate(90deg); }
+        .disclosure-content { display: none; padding-bottom: 8px; }
+        .disclosure-content.open { display: block; }
+
+        /* Responsive */
+        @media (max-width: 500px) {
+            .tab { font-size: 11px; padding: 8px 6px; }
+            .tab-icon { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-page">
+        <div class="login-box">
+            <div class="login-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <h1>Claude Worker</h1>
+                <p>Automated Code Tasks</p>
+            </div>
+            <div id="loginAlert"></div>
+            <div class="form-group">
+                <label class="form-label">Server URL</label>
+                <input type="url" id="loginServer" placeholder="https://your-server.com" autocapitalize="off" autocorrect="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Admin Password</label>
+                <div class="input-row">
+                    <input type="password" id="loginPassword" placeholder="Password" autocapitalize="off">
+                    <button class="btn-icon" style="background:var(--bg-input);color:var(--text-dim)" onclick="togglePasswordVis()">👁</button>
+                </div>
+            </div>
+            <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">
+                Connect
+            </button>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="appPage" style="display:none">
+        <div class="header">
+            <div class="header-brand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span>Claude Worker</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-sm btn-outline" onclick="doLogout()">Logout</button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="newTask">
+                <span class="tab-icon">+</span>New Task
+            </div>
+            <div class="tab" data-tab="liveTasks">
+                <span class="tab-icon">⚡</span>Live <span id="liveCount"></span>
+            </div>
+            <div class="tab" data-tab="runs">
+                <span class="tab-icon">✓</span>Runs
+            </div>
+            <div class="tab" data-tab="docker">
+                <span class="tab-icon">📦</span>Docker
+            </div>
+            <div class="tab" data-tab="settings">
+                <span class="tab-icon">⚙</span>Settings
+            </div>
+        </div>
+
+        <!-- New Task Panel -->
+        <div id="panel-newTask" class="panel active">
+            <div id="newTaskAlert"></div>
+
+            <div class="form-group">
+                <div class="flex items-center justify-between mb-8">
+                    <label class="form-label" style="margin:0">Task Description</label>
+                    <button class="btn-icon mic-btn" id="micBtn" onclick="toggleVoice()">🎤</button>
+                </div>
+                <textarea id="taskInput" placeholder="Describe what you want Claude to do..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Repository</label>
+                <div class="segment mb-8">
+                    <button class="segment-btn active" data-source="url" onclick="setRepoSource('url')">URL</button>
+                    <button class="segment-btn" data-source="local" onclick="setRepoSource('local')">Local Path</button>
+                </div>
+                <input type="url" id="repoUrlInput" placeholder="https://github.com/user/repo.git" autocapitalize="off">
+                <input type="text" id="localRepoInput" placeholder="/path/to/local/repo" style="display:none" autocapitalize="off">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Anthropic API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocapitalize="off">
+            </div>
+
+            <div class="disclosure-header" onclick="toggleAdvanced()">
+                Advanced Options
+                <span class="disclosure-arrow" id="advArrow">▶</span>
+            </div>
+            <div class="disclosure-content" id="advContent">
+                <div class="form-group">
+                    <label class="form-label">Branch Name</label>
+                    <input type="text" id="branchInput" placeholder="auto-generated" autocapitalize="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Repo Branch</label>
+                    <input type="text" id="repoBranchInput" placeholder="main" autocapitalize="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Model</label>
+                    <input type="text" id="modelInput" placeholder="default" autocapitalize="off">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Max Turns</label>
+                    <input type="number" id="maxTurnsInput" placeholder="auto">
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Push to Remote</span>
+                    <input type="checkbox" id="pushCheck">
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Rebuild Image</span>
+                    <input type="checkbox" id="rebuildCheck">
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Verbose</span>
+                    <input type="checkbox" id="verboseCheck">
+                </div>
+            </div>
+
+            <button class="btn btn-primary btn-full mt-12" id="launchBtn" onclick="launchTask()">
+                ▶ Run Worker
+            </button>
+        </div>
+
+        <!-- Live Tasks Panel -->
+        <div id="panel-liveTasks" class="panel">
+            <div class="flex items-center justify-between mb-8">
+                <span class="form-label" style="margin:0">Running Tasks</span>
+                <button class="btn btn-sm btn-outline" onclick="loadTasks()">↻ Refresh</button>
+            </div>
+            <div id="tasksList"></div>
+        </div>
+
+        <!-- Runs Panel -->
+        <div id="panel-runs" class="panel">
+            <div class="flex items-center justify-between mb-8">
+                <span class="form-label" style="margin:0">Completed Runs</span>
+                <button class="btn btn-sm btn-outline" onclick="loadRuns()">↻ Refresh</button>
+            </div>
+            <div id="runsList"></div>
+        </div>
+
+        <!-- Docker Panel -->
+        <div id="panel-docker" class="panel">
+            <div class="flex items-center justify-between mb-8">
+                <span class="form-label" style="margin:0">Docker Containers</span>
+                <div class="flex gap-8">
+                    <button class="btn btn-sm btn-danger" onclick="stopAllContainers()">Stop All</button>
+                    <button class="btn btn-sm btn-outline" onclick="loadDocker()">↻ Refresh</button>
+                </div>
+            </div>
+            <div id="dockerList"></div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="panel-settings" class="panel">
+            <div class="form-group">
+                <label class="form-label">Server URL</label>
+                <input type="url" id="settingsServer" placeholder="https://your-server.com" autocapitalize="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default API Key</label>
+                <input type="password" id="settingsApiKey" placeholder="sk-ant-..." autocapitalize="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Repo URL</label>
+                <input type="url" id="settingsRepoUrl" placeholder="https://github.com/user/repo.git" autocapitalize="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Local Path</label>
+                <input type="text" id="settingsLocalRepo" placeholder="/path/to/repo" autocapitalize="off">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Default Model</label>
+                <input type="text" id="settingsModel" placeholder="default" autocapitalize="off">
+            </div>
+            <button class="btn btn-primary btn-full" onclick="saveAllSettings()">Save Settings</button>
+            <div id="settingsAlert" class="mt-12"></div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">Title</span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+    // ─── State ───
+    let serverUrl = localStorage.getItem('cw_server_url') || '';
+    let authToken = localStorage.getItem('cw_auth_token') || '';
+    let isLoggedIn = false;
+    let repoSource = localStorage.getItem('cw_repo_source') || 'url';
+    let recognition = null;
+    let isRecording = false;
+    let taskPollTimer = null;
+
+    // ─── Init ───
+    document.addEventListener('DOMContentLoaded', () => {
+        const saved = localStorage.getItem('cw_server_url');
+        if (saved) document.getElementById('loginServer').value = saved;
+
+        // Restore settings
+        restoreSettings();
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        // Auto-login if token exists
+        if (authToken && serverUrl) {
+            api('GET', '/claude-worker/tasks').then(() => {
+                isLoggedIn = true;
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('appPage').style.display = 'block';
+                startTaskPolling();
+            }).catch(() => {
+                authToken = '';
+                localStorage.removeItem('cw_auth_token');
+            });
+        }
+    });
+
+    // ─── Auth ───
+    async function doLogin() {
+        const server = document.getElementById('loginServer').value.replace(/\/+$/, '');
+        const password = document.getElementById('loginPassword').value;
+        if (!server || !password) return showAlert('loginAlert', 'Enter server URL and password', 'error');
+
+        const btn = document.getElementById('loginBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner"></div> Connecting...';
+
+        try {
+            serverUrl = server;
+            localStorage.setItem('cw_server_url', server);
+
+            const res = await fetch(server + '/claude-worker/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ password })
+            });
+
+            const data = await res.json().catch(() => null);
+
+            if (res.ok && data?.token) {
+                authToken = data.token;
+                localStorage.setItem('cw_auth_token', authToken);
+                isLoggedIn = true;
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('appPage').style.display = 'block';
+                startTaskPolling();
+                return;
+            }
+
+            throw new Error(data?.error || 'Login failed');
+        } catch(e) {
+            showAlert('loginAlert', e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Connect';
+        }
+    }
+
+    function doLogout() {
+        authToken = '';
+        localStorage.removeItem('cw_auth_token');
+        isLoggedIn = false;
+        stopTaskPolling();
+        document.getElementById('appPage').style.display = 'none';
+        document.getElementById('loginPage').style.display = 'flex';
+    }
+
+    function togglePasswordVis() {
+        const inp = document.getElementById('loginPassword');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    // ─── API Helper ───
+    async function api(method, path, body) {
+        const opts = {
+            method,
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + authToken
+            }
+        };
+        if (body) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(serverUrl + path, opts);
+        if (res.status === 403) {
+            doLogout();
+            throw new Error('Session expired');
+        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Request failed');
+        return data;
+    }
+
+    // ─── Tabs ───
+    function switchTab(name) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+        document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+
+        if (name === 'liveTasks') loadTasks();
+        if (name === 'runs') loadRuns();
+        if (name === 'docker') loadDocker();
+        if (name === 'settings') loadSettingsPage();
+    }
+
+    // ─── New Task ───
+    function setRepoSource(src) {
+        repoSource = src;
+        localStorage.setItem('cw_repo_source', src);
+        document.querySelectorAll('.segment-btn').forEach(b => b.classList.toggle('active', b.dataset.source === src));
+        document.getElementById('repoUrlInput').style.display = src === 'url' ? '' : 'none';
+        document.getElementById('localRepoInput').style.display = src === 'local' ? '' : 'none';
+    }
+
+    function toggleAdvanced() {
+        const c = document.getElementById('advContent');
+        const a = document.getElementById('advArrow');
+        c.classList.toggle('open');
+        a.classList.toggle('open');
+    }
+
+    async function launchTask() {
+        const task = document.getElementById('taskInput').value.trim();
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+        if (!task) return showAlert('newTaskAlert', 'Enter a task description', 'error');
+        if (!apiKey) return showAlert('newTaskAlert', 'Enter your API key', 'error');
+
+        const btn = document.getElementById('launchBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner"></div> Launching...';
+
+        try {
+            const body = {
+                api_key: apiKey,
+                task: task,
+                repo_source: repoSource,
+                push: document.getElementById('pushCheck').checked,
+                rebuild: document.getElementById('rebuildCheck').checked,
+                verbose: document.getElementById('verboseCheck').checked
+            };
+
+            if (repoSource === 'url') body.repo_url = document.getElementById('repoUrlInput').value;
+            else body.local_repo = document.getElementById('localRepoInput').value;
+
+            const branch = document.getElementById('branchInput').value.trim();
+            const repoBranch = document.getElementById('repoBranchInput').value.trim();
+            const model = document.getElementById('modelInput').value.trim();
+            const maxTurns = document.getElementById('maxTurnsInput').value.trim();
+
+            if (branch) body.branch = branch;
+            if (repoBranch) body.repo_branch = repoBranch;
+            if (model) body.model = model;
+            if (maxTurns) body.max_turns = parseInt(maxTurns);
+
+            // Save settings
+            localStorage.setItem('cw_api_key', apiKey);
+            localStorage.setItem('cw_repo_url', document.getElementById('repoUrlInput').value);
+            localStorage.setItem('cw_local_repo', document.getElementById('localRepoInput').value);
+            if (model) localStorage.setItem('cw_model', model);
+
+            const data = await api('POST', '/claude-worker/launch', body);
+            showAlert('newTaskAlert', 'Task launched: ' + data.task_id, 'success');
+            document.getElementById('taskInput').value = '';
+        } catch(e) {
+            showAlert('newTaskAlert', e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '▶ Run Worker';
+        }
+    }
+
+    // ─── Live Tasks ───
+    async function loadTasks() {
+        const el = document.getElementById('tasksList');
+        try {
+            const data = await api('GET', '/claude-worker/tasks');
+            const tasks = data.tasks || [];
+
+            const runningCount = tasks.filter(t => t.status === 'running').length;
+            document.getElementById('liveCount').textContent = runningCount > 0 ? `(${runningCount})` : '';
+
+            if (!tasks.length) {
+                el.innerHTML = '<div class="empty"><div class="empty-icon">⚡</div><div class="empty-text">No tasks running</div></div>';
+                return;
+            }
+
+            el.innerHTML = tasks.map(t => `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="badge badge-${t.status === 'running' ? 'running' : t.status === 'finished' ? 'success' : t.status === 'stopped' ? 'stopped' : 'default'}">
+                            <span class="badge-dot"></span>${esc(t.status)}
+                        </span>
+                        <span class="text-small text-muted">${esc(t.started_at || '')}</span>
+                    </div>
+                    <div style="margin-bottom:6px">${esc(t.task)}</div>
+                    ${t.repo ? `<div class="text-small text-muted truncate">📁 ${esc(t.repo)}</div>` : ''}
+                    <div class="actions">
+                        <button class="btn btn-sm btn-outline" onclick="viewTaskLogs('${esc(t.task_id)}')">📄 Logs</button>
+                        ${t.is_running || t.status === 'running' ? `<button class="btn btn-sm btn-danger" onclick="stopTask('${esc(t.task_id)}')">⏹ Stop</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            el.innerHTML = `<div class="alert alert-error">${esc(e.message)}</div>`;
+        }
+    }
+
+    async function viewTaskLogs(taskId) {
+        try {
+            const data = await api('GET', `/claude-worker/tasks/${taskId}/logs`);
+            openModal('Task Log: ' + taskId, `<div class="code-block">${esc(data.logs)}</div>
+                ${data.is_running ? '<div class="mt-8 text-small text-muted">🟢 Task is still running...</div>' : '<div class="mt-8 text-small text-muted">⏹ Task finished</div>'}`);
+        } catch(e) {
+            openModal('Error', `<div class="alert alert-error">${esc(e.message)}</div>`);
+        }
+    }
+
+    async function stopTask(taskId) {
+        if (!confirm('Stop this task?')) return;
+        try {
+            await api('POST', `/claude-worker/tasks/${taskId}/stop`);
+            loadTasks();
+        } catch(e) {
+            alert(e.message);
+        }
+    }
+
+    function startTaskPolling() {
+        stopTaskPolling();
+        taskPollTimer = setInterval(() => {
+            const livePanel = document.getElementById('panel-liveTasks');
+            if (livePanel.classList.contains('active')) loadTasks();
+        }, 4000);
+    }
+    function stopTaskPolling() {
+        if (taskPollTimer) { clearInterval(taskPollTimer); taskPollTimer = null; }
+    }
+
+    // ─── Runs ───
+    async function loadRuns() {
+        const el = document.getElementById('runsList');
+        try {
+            const data = await api('GET', '/claude-worker/runs');
+            const runs = data.runs || [];
+
+            if (!runs.length) {
+                el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No completed runs</div></div>';
+                return;
+            }
+
+            el.innerHTML = runs.map(r => {
+                const status = r.result?.status || 'unknown';
+                const badgeClass = status === 'success' ? 'success' : status === 'error' ? 'error' : 'default';
+                return `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="badge badge-${badgeClass}"><span class="badge-dot"></span>${esc(status)}</span>
+                        ${r.result?.files_changed ? `<span class="text-small text-dim">${r.result.files_changed} files</span>` : ''}
+                    </div>
+                    <div class="text-small mono text-muted mb-8">${esc(r.run_id)}</div>
+                    ${r.info?.task ? `<div style="margin-bottom:6px">${esc(r.info.task)}</div>` : ''}
+                    ${r.info?.branch_name ? `<div class="text-small" style="color:var(--indigo)">🔀 ${esc(r.info.branch_name)}</div>` : ''}
+                    <div class="actions">
+                        ${r.has_diff ? `<button class="btn btn-sm btn-outline" onclick="viewDiff('${esc(r.run_id)}')">⟨/⟩ Diff</button>` : ''}
+                        <button class="btn btn-sm btn-outline" style="color:var(--blue);border-color:var(--blue)" onclick="viewSummary('${esc(r.run_id)}')">📝 Summary</button>
+                        <button class="btn btn-sm btn-outline" style="color:var(--text-muted);border-color:var(--text-muted)" onclick="viewRunLog('${esc(r.run_id)}')">📄 Log</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRun('${esc(r.run_id)}')">🗑</button>
+                    </div>
+                </div>`;
+            }).join('');
+        } catch(e) {
+            el.innerHTML = `<div class="alert alert-error">${esc(e.message)}</div>`;
+        }
+    }
+
+    async function viewDiff(runId) {
+        try {
+            const data = await api('GET', `/claude-worker/runs/${runId}/diff`);
+            const highlighted = highlightDiff(data.diff);
+            openModal('Diff: ' + runId, `<div class="code-block">${highlighted}</div>`);
+        } catch(e) {
+            openModal('Error', `<div class="alert alert-error">${esc(e.message)}</div>`);
+        }
+    }
+
+    async function viewSummary(runId) {
+        try {
+            const data = await api('GET', `/claude-worker/runs/${runId}/summary`);
+            openModal('Summary: ' + runId, `<div class="code-block">${esc(data.summary)}</div>`);
+        } catch(e) {
+            openModal('Error', `<div class="alert alert-error">${esc(e.message)}</div>`);
+        }
+    }
+
+    async function viewRunLog(runId) {
+        try {
+            const data = await api('GET', `/claude-worker/runs/${runId}/logs`);
+            openModal('Log: ' + runId, `<div class="code-block">${esc(data.logs)}</div>`);
+        } catch(e) {
+            openModal('Error', `<div class="alert alert-error">${esc(e.message)}</div>`);
+        }
+    }
+
+    async function deleteRun(runId) {
+        if (!confirm('Delete this run? This cannot be undone.')) return;
+        try {
+            await api('DELETE', `/claude-worker/runs/${runId}`);
+            loadRuns();
+        } catch(e) { alert(e.message); }
+    }
+
+    function highlightDiff(text) {
+        return esc(text).split('\n').map(line => {
+            if (line.startsWith('+++') || line.startsWith('---')) return `<span class="diff-meta">${line}</span>`;
+            if (line.startsWith('+')) return `<span class="diff-add">${line}</span>`;
+            if (line.startsWith('-')) return `<span class="diff-del">${line}</span>`;
+            if (line.startsWith('@@')) return `<span class="diff-hunk">${line}</span>`;
+            if (line.startsWith('diff ')) return `<span class="diff-file">${line}</span>`;
+            return line;
+        }).join('\n');
+    }
+
+    // ─── Docker ───
+    async function loadDocker() {
+        const el = document.getElementById('dockerList');
+        try {
+            const data = await api('GET', '/claude-worker/docker/workers');
+            const containers = data.workers || data.containers || [];
+
+            if (!containers.length) {
+                el.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">No Docker containers running</div></div>';
+                return;
+            }
+
+            el.innerHTML = containers.map(c => `
+                <div class="card">
+                    <div class="card-header">
+                        <span style="font-weight:700">📦 ${esc(c.name)}</span>
+                    </div>
+                    ${c.container_id ? `<div class="text-small mono text-muted">${esc(c.container_id.substring(0,12))}</div>` : ''}
+                    <div class="flex items-center justify-between mt-8">
+                        <span class="text-small" style="color:${c.status?.toLowerCase().includes('up') ? 'var(--green)' : 'var(--orange)'}">${esc(c.status || '')}</span>
+                        <span class="text-small text-muted">${esc(c.created || '')}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-sm btn-outline" onclick="viewDockerLogs('${esc(c.name)}')">📄 Logs</button>
+                        <button class="btn btn-sm btn-danger" onclick="stopContainer('${esc(c.name)}')">⏹ Stop</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            el.innerHTML = `<div class="alert alert-error">${esc(e.message)}</div>`;
+        }
+    }
+
+    async function viewDockerLogs(name) {
+        try {
+            const data = await api('GET', `/claude-worker/docker/logs/${name}`);
+            openModal('Docker: ' + name, `<div class="code-block">${esc(data.logs)}</div>`);
+        } catch(e) {
+            openModal('Error', `<div class="alert alert-error">${esc(e.message)}</div>`);
+        }
+    }
+
+    async function stopContainer(name) {
+        if (!confirm('Stop container ' + name + '?')) return;
+        try {
+            await api('POST', `/claude-worker/docker/stop/${name}`);
+            loadDocker();
+        } catch(e) { alert(e.message); }
+    }
+
+    async function stopAllContainers() {
+        if (!confirm('Stop ALL Docker containers?')) return;
+        try {
+            await api('POST', '/claude-worker/docker/stop-all');
+            loadDocker();
+        } catch(e) { alert(e.message); }
+    }
+
+    // ─── Settings ───
+    function loadSettingsPage() {
+        document.getElementById('settingsServer').value = localStorage.getItem('cw_server_url') || '';
+        document.getElementById('settingsApiKey').value = localStorage.getItem('cw_api_key') || '';
+        document.getElementById('settingsRepoUrl').value = localStorage.getItem('cw_repo_url') || '';
+        document.getElementById('settingsLocalRepo').value = localStorage.getItem('cw_local_repo') || '';
+        document.getElementById('settingsModel').value = localStorage.getItem('cw_model') || '';
+    }
+
+    function saveAllSettings() {
+        localStorage.setItem('cw_server_url', document.getElementById('settingsServer').value);
+        localStorage.setItem('cw_api_key', document.getElementById('settingsApiKey').value);
+        localStorage.setItem('cw_repo_url', document.getElementById('settingsRepoUrl').value);
+        localStorage.setItem('cw_local_repo', document.getElementById('settingsLocalRepo').value);
+        localStorage.setItem('cw_model', document.getElementById('settingsModel').value);
+        serverUrl = document.getElementById('settingsServer').value.replace(/\/+$/, '');
+        showAlert('settingsAlert', 'Settings saved', 'success');
+    }
+
+    function restoreSettings() {
+        const apiKey = localStorage.getItem('cw_api_key') || '';
+        const repoUrl = localStorage.getItem('cw_repo_url') || '';
+        const localRepo = localStorage.getItem('cw_local_repo') || '';
+        const model = localStorage.getItem('cw_model') || '';
+        const src = localStorage.getItem('cw_repo_source') || 'url';
+
+        document.getElementById('apiKeyInput').value = apiKey;
+        document.getElementById('repoUrlInput').value = repoUrl;
+        document.getElementById('localRepoInput').value = localRepo;
+        document.getElementById('modelInput').value = model;
+        setRepoSource(src);
+    }
+
+    // ─── Voice ───
+    function toggleVoice() {
+        const btn = document.getElementById('micBtn');
+        if (isRecording) {
+            stopVoice();
+            return;
+        }
+
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Speech recognition not supported in this browser. Use Chrome or Safari.');
+            return;
+        }
+
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        let finalTranscript = '';
+        recognition.onresult = (e) => {
+            let interim = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                const t = e.results[i][0].transcript;
+                if (e.results[i].isFinal) finalTranscript += t + ' ';
+                else interim = t;
+            }
+            document.getElementById('taskInput').value = finalTranscript + interim;
+        };
+
+        recognition.onerror = (e) => {
+            console.error('Speech error', e.error);
+            stopVoice();
+        };
+
+        recognition.onend = () => {
+            if (isRecording) {
+                try { recognition.start(); } catch(e) { stopVoice(); }
+            }
+        };
+
+        recognition.start();
+        isRecording = true;
+        btn.classList.add('recording');
+        btn.textContent = '⏹';
+    }
+
+    function stopVoice() {
+        const btn = document.getElementById('micBtn');
+        isRecording = false;
+        btn.classList.remove('recording');
+        btn.textContent = '🎤';
+        if (recognition) { recognition.stop(); recognition = null; }
+    }
+
+    // ─── Modal ───
+    function openModal(title, bodyHtml) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalBody').innerHTML = bodyHtml;
+        document.getElementById('modalOverlay').classList.add('active');
+    }
+    function closeModal() {
+        document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    // ─── Utils ───
+    function esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = String(s);
+        return d.innerHTML;
+    }
+
+    function showAlert(id, msg, type) {
+        const el = document.getElementById(id);
+        el.innerHTML = `<div class="alert alert-${type}">${type === 'error' ? '⚠' : '✓'} ${esc(msg)}</div>`;
+        if (type === 'success') setTimeout(() => el.innerHTML = '', 4000);
+    }
+    </script>
+</body>
+</html>

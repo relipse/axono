@@ -29,10 +29,15 @@ Route::get('/plans', [SubscriptionController::class, 'plans'])->name('subscripti
 Route::get('/claude-worker/features', [ClaudeWorkerController::class, 'marketing'])->name('claude-worker.marketing');
 Route::get('/claude-worker/screenshots/{name}', [ClaudeWorkerController::class, 'screenshot'])->name('claude-worker.screenshot');
 Route::get('/claude-worker/login', [ClaudeWorkerController::class, 'showLogin'])->name('claude-worker.login');
-Route::post('/claude-worker/login', [ClaudeWorkerController::class, 'login']);
+Route::post('/claude-worker/login', [ClaudeWorkerController::class, 'login'])->middleware('claude-worker-cors');
 Route::post('/claude-worker/logout', [ClaudeWorkerController::class, 'logout'])->name('claude-worker.logout');
 
-Route::prefix('claude-worker')->middleware('claude-worker-admin')->group(function () {
+// CORS preflight for API clients
+Route::options('/claude-worker/{any}', function () {
+    return response('', 204);
+})->where('any', '.*')->middleware('claude-worker-cors');
+
+Route::prefix('claude-worker')->middleware(['claude-worker-admin', 'claude-worker-cors'])->group(function () {
     Route::get('/', [ClaudeWorkerController::class, 'index'])->name('claude-worker.index');
     Route::get('/voice', [ClaudeWorkerController::class, 'voice'])->name('claude-worker.voice');
     Route::post('/transcribe', [ClaudeWorkerController::class, 'transcribe'])->name('claude-worker.transcribe');

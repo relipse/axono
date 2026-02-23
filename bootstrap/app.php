@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'subscription' => \App\Http\Middleware\CheckSubscription::class,
             'claude-worker-admin' => \App\Http\Middleware\ClaudeWorkerAdmin::class,
+            'claude-worker-cors' => \App\Http\Middleware\ClaudeWorkerCors::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

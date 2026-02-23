@@ -44,11 +44,25 @@ class ClaudeWorkerController extends Controller
         $configured = config('claude-worker.admin_password');
 
         if (!$configured) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'No admin password configured. Set CLAUDE_WORKER_PASSWORD in .env'], 500);
+            }
             return back()->withErrors(['password' => 'No admin password configured. Set CLAUDE_WORKER_PASSWORD in .env']);
         }
 
         if ($request->input('password') !== $configured) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Invalid password.'], 401);
+            }
             return back()->withErrors(['password' => 'Invalid password.']);
+        }
+
+        // For JSON/API clients: return the password as a bearer token
+        if ($request->expectsJson()) {
+            return response()->json([
+                'authenticated' => true,
+                'token' => $configured,
+            ]);
         }
 
         $request->session()->put('cw_admin', true);
