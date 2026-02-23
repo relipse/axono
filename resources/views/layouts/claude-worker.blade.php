@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CW Voice">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icon-192.png') }}">
     <title>Claude Worker - @yield('title', 'Admin')</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
     <style>
@@ -54,6 +60,7 @@
                         <a href="{{ route('claude-worker.marketing') }}" class="pf-nav-link {{ request()->routeIs('claude-worker.marketing') ? 'active' : '' }}">Features</a>
                         @if(session('cw_admin'))
                             <a href="{{ route('claude-worker.index') }}" class="pf-nav-link {{ request()->routeIs('claude-worker.index') ? 'active' : '' }}">Admin</a>
+                            <a href="{{ route('claude-worker.voice') }}" class="pf-nav-link {{ request()->routeIs('claude-worker.voice') ? 'active' : '' }}">Voice</a>
                         @endif
                     </div>
                 </div>

@@ -479,6 +479,80 @@ class ClaudeWorkerController extends Controller
         return response()->json(['status' => 'all stopped', 'count' => $count]);
     }
 
+    // ── Voice transcription (Whisper API) ────────────────────────────────────
+
+    public function transcribe(Request $request)
+    {
+        $request->validate([
+            'audio' => 'required|file|max:25600', // 25MB max (Whisper limit)
+        ]);
+
+        // Use OpenAI Whisper API for transcription
+        $apiKey = $request->input('openai_key') ?: config('claude-worker.openai_api_key');
+
+        if (!$apiKey) {
+            return response()->json(['error' => 'No OpenAI API key configured. Set OPENAI_API_KEY in .env or provide it in settings.'], 422);
+        }
+
+        $audioFile = $request->file('audio');
+
+        // Convert to a format Whisper accepts if needed
+        $tmpPath = $audioFile->getPathname();
+        $ext = $this->audioExtension($audioFile->getMimeType());
+
+        $ch = curl_init('https://api.openai.com/v1/audio/transcriptions');
+        $cFile = new \CURLFile($tmpPath, $audioFile->getMimeType(), 'audio.' . $ext);
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $apiKey,
+            ],
+            CURLOPT_POSTFIELDS => [
+                'file' => $cFile,
+                'model' => 'whisper-1',
+                'response_format' => 'json',
+            ],
+            CURLOPT_TIMEOUT => 60,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            return response()->json(['error' => 'Transcription request failed: ' . $error], 500);
+        }
+
+        $data = json_decode($response, true);
+
+        if ($httpCode !== 200) {
+            $msg = $data['error']['message'] ?? 'Whisper API error (HTTP ' . $httpCode . ')';
+            return response()->json(['error' => $msg], $httpCode);
+        }
+
+        return response()->json(['text' => $data['text'] ?? '']);
+    }
+
+    public function voice()
+    {
+        return view('claude-worker.voice');
+    }
+
+    protected function audioExtension(string $mimeType): string
+    {
+        return match (true) {
+            str_contains($mimeType, 'webm') => 'webm',
+            str_contains($mimeType, 'mp4') => 'mp4',
+            str_contains($mimeType, 'ogg') => 'ogg',
+            str_contains($mimeType, 'wav') => 'wav',
+            str_contains($mimeType, 'mpeg') => 'mp3',
+            default => 'webm',
+        };
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     protected function findRunDir(string $runId): ?string

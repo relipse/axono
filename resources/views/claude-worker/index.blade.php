@@ -54,7 +54,19 @@
 
             <div class="pf-form-group">
                 <label class="pf-label">Task / Prompt</label>
-                <textarea class="pf-textarea" id="taskPrompt" rows="3" placeholder="Describe what Claude should do..."></textarea>
+                <div style="position:relative">
+                    <textarea class="pf-textarea" id="taskPrompt" rows="3" placeholder="Describe what Claude should do..." style="padding-right:3rem"></textarea>
+                    <button type="button" class="cw-mic-btn" id="micBtn" onclick="toggleVoice()" title="Voice dictation">
+                        <svg id="micIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                        <span class="cw-mic-pulse" id="micPulse"></span>
+                    </button>
+                </div>
+                <p class="pf-hint" id="voiceHint">Tap the mic to dictate your task.</p>
             </div>
 
             <div class="pf-grid pf-grid-2">
@@ -286,6 +298,43 @@
     animation: cw-spin 0.6s linear infinite;
     margin-right: 6px;
     vertical-align: middle;
+}
+
+/* ── Mic button ────────────────────────────────────────────────── */
+.cw-mic-btn {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--pf-gray-300);
+    background: #fff;
+    color: var(--pf-gray-500);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+.cw-mic-btn:hover { border-color: var(--pf-primary-600); color: var(--pf-primary-600); }
+.cw-mic-btn.recording {
+    border-color: #ef4444;
+    color: #ef4444;
+    background: #fef2f2;
+}
+.cw-mic-pulse {
+    display: none;
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid #ef4444;
+    animation: cw-mic-pulse 1.2s ease-in-out infinite;
+}
+.cw-mic-btn.recording .cw-mic-pulse { display: block; }
+@keyframes cw-mic-pulse {
+    0%, 100% { opacity: 0; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
 }
 </style>
 
@@ -615,6 +664,183 @@ function highlightDiff(text) {
         if (line.startsWith('diff ')) return '<span class="cw-diff-header">' + e + '</span>';
         return e;
     }).join('\n');
+}
+
+// ── Voice Dictation ─────────────────────────────────────────────────────────
+let voiceRecognition = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+// Prefer Web Speech API (works in Safari iOS, Chrome), fall back to Whisper API
+const hasSpeechAPI = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
+function toggleVoice() {
+    if (isRecording) {
+        stopVoice();
+    } else {
+        startVoice();
+    }
+}
+
+function startVoice() {
+    const btn = document.getElementById('micBtn');
+    const hint = document.getElementById('voiceHint');
+
+    if (hasSpeechAPI) {
+        startWebSpeech(btn, hint);
+    } else {
+        startWhisperRecording(btn, hint);
+    }
+}
+
+function stopVoice() {
+    const btn = document.getElementById('micBtn');
+    const hint = document.getElementById('voiceHint');
+
+    if (voiceRecognition) {
+        voiceRecognition.stop();
+        voiceRecognition = null;
+    }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+
+    btn.classList.remove('recording');
+    hint.textContent = 'Tap the mic to dictate your task.';
+    isRecording = false;
+}
+
+// ── Web Speech API (built-in, works on iOS Safari & Chrome) ─────────────────
+function startWebSpeech(btn, hint) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    voiceRecognition = new SpeechRecognition();
+    voiceRecognition.continuous = true;
+    voiceRecognition.interimResults = true;
+    voiceRecognition.lang = 'en-US';
+
+    let finalTranscript = '';
+
+    voiceRecognition.onstart = () => {
+        isRecording = true;
+        btn.classList.add('recording');
+        hint.textContent = 'Listening... tap mic to stop.';
+        hint.style.color = '#ef4444';
+    };
+
+    voiceRecognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += transcript + ' ';
+            } else {
+                interim += transcript;
+            }
+        }
+        const ta = document.getElementById('taskPrompt');
+        const existing = ta.value.replace(/\n\[listening\.\.\.\].*$/, '');
+        ta.value = (existing ? existing + '\n' : '') + finalTranscript + (interim ? '[listening...] ' + interim : '');
+    };
+
+    voiceRecognition.onerror = (event) => {
+        if (event.error === 'not-allowed') {
+            hint.textContent = 'Microphone access denied. Check browser permissions.';
+        } else {
+            hint.textContent = 'Speech error: ' + event.error + '. Trying Whisper fallback...';
+            // Fall back to Whisper recording
+            startWhisperRecording(btn, hint);
+            return;
+        }
+        hint.style.color = '#ef4444';
+        btn.classList.remove('recording');
+        isRecording = false;
+    };
+
+    voiceRecognition.onend = () => {
+        if (isRecording) {
+            // Clean up the "[listening...]" marker
+            const ta = document.getElementById('taskPrompt');
+            ta.value = ta.value.replace(/\[listening\.\.\.\]\s*/g, '').trim();
+        }
+        btn.classList.remove('recording');
+        hint.textContent = 'Tap the mic to dictate your task.';
+        hint.style.color = '';
+        isRecording = false;
+        voiceRecognition = null;
+    };
+
+    voiceRecognition.start();
+}
+
+// ── Whisper API fallback (record audio, send to server for transcription) ────
+async function startWhisperRecording(btn, hint) {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream, { mimeType: getSupportedMimeType() });
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            btn.classList.remove('recording');
+            hint.textContent = 'Transcribing with Whisper...';
+            hint.style.color = 'var(--pf-primary-600)';
+
+            const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+            await transcribeWithWhisper(blob, hint);
+        };
+
+        mediaRecorder.start(1000); // collect chunks every second
+        isRecording = true;
+        btn.classList.add('recording');
+        hint.textContent = 'Recording... tap mic to stop and transcribe.';
+        hint.style.color = '#ef4444';
+    } catch (err) {
+        hint.textContent = 'Microphone access denied. Check browser permissions.';
+        hint.style.color = '#ef4444';
+    }
+}
+
+async function transcribeWithWhisper(audioBlob, hint) {
+    const openaiKey = localStorage.getItem('cw_openai_key') || '';
+
+    // Try server-side transcription endpoint first
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+    if (openaiKey) formData.append('openai_key', openaiKey);
+
+    try {
+        const resp = await fetch('/claude-worker/transcribe', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: formData,
+        });
+        const data = await resp.json();
+        if (data.text) {
+            const ta = document.getElementById('taskPrompt');
+            ta.value = (ta.value ? ta.value + '\n' : '') + data.text;
+            hint.textContent = 'Transcription complete. Tap mic to record more.';
+            hint.style.color = 'var(--pf-green-600, #16a34a)';
+        } else {
+            hint.textContent = 'Transcription failed: ' + (data.error || 'Unknown error');
+            hint.style.color = '#ef4444';
+        }
+    } catch (err) {
+        hint.textContent = 'Transcription request failed: ' + err.message;
+        hint.style.color = '#ef4444';
+    }
+}
+
+function getSupportedMimeType() {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return 'audio/webm';
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────

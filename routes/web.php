@@ -34,6 +34,8 @@ Route::post('/claude-worker/logout', [ClaudeWorkerController::class, 'logout'])-
 
 Route::prefix('claude-worker')->middleware('claude-worker-admin')->group(function () {
     Route::get('/', [ClaudeWorkerController::class, 'index'])->name('claude-worker.index');
+    Route::get('/voice', [ClaudeWorkerController::class, 'voice'])->name('claude-worker.voice');
+    Route::post('/transcribe', [ClaudeWorkerController::class, 'transcribe'])->name('claude-worker.transcribe');
     Route::post('/launch', [ClaudeWorkerController::class, 'launch'])->name('claude-worker.launch');
     Route::get('/tasks', [ClaudeWorkerController::class, 'tasks'])->name('claude-worker.tasks');
     Route::get('/tasks/{taskId}/logs', [ClaudeWorkerController::class, 'taskLogs'])->name('claude-worker.task-logs');
